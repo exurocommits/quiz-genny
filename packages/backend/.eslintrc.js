@@ -7,4 +7,10 @@ module.exports = {
     es2022: true,
   },
   ignorePatterns: ['node_modules/', 'dist/'],
+  rules: {
+    '@typescript-eslint/no-unused-vars': [
+      'warn',
+      { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+    ],
+  },
 };
