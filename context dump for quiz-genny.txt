@@ -1,0 +1,2212 @@
+# Agentic Quiz Generator — Complete Technical Specification v1.0
+
+## Document Purpose
+
+This document is the authoritative specification for building an AI-assisted quiz generation tool. It is structured for handoff to an autonomous development agent (Claude Code) to assume full implementation responsibility. Every feature, user interaction, system behavior, data structure, and edge case is documented. The developer should be able to build the complete application using only this document and standard technical judgment.
+
+---
+
+# PART 1: PRODUCT DEFINITION
+
+## 1.1 Product Overview
+
+### Core Concept
+
+An agentic workflow tool that assists quiz hosts in generating professional, balanced, and verified quiz content. The system uses LLM-powered generation with human-in-the-loop curation at each stage. Final output is a downloadable PowerPoint presentation ready for live hosting.
+
+### Key Principles
+
+1. **AI generates, human curates** — AI produces candidates in batches, user selects and refines through intuitive accept/reject actions
+2. **Difficulty balancing** — Questions are scored across four dimensions to ensure engaging score distributions that keep all participants engaged
+3. **Verification by default** — All answers are fact-checked via web search before final output, with user confirmation on corrections
+4. **Progressive refinement** — Each "Generate more" action incorporates prior feedback, rejection memory, and difficulty gap awareness
+5. **Duplicate prevention** — System actively prevents duplicate or highly similar questions across the entire quiz
+6. **Professional output** — Final PPTX is presentation-ready with consistent theming, curated imagery, and optional host notes
+
+### Target Users
+
+Quiz hosts creating content for:
+- Pub quizzes
+- Corporate team-building events
+- Charity fundraiser nights
+- Competitive quiz leagues
+- Social gatherings and parties
+- Educational assessments
+- Family game nights
+
+### Technical Approach
+
+- Web application (React frontend)
+- Node.js or Python backend
+- LLM integration via Anthropic API (Claude)
+- Web search integration for verification and image sourcing
+- PowerPoint generation via server-side library
+- Session-based state management (no user accounts in v1)
+
+---
+
+## 1.2 Feature Summary
+
+| Feature | Phase | Description |
+|---------|-------|-------------|
+| Audience preset selection | Setup | Predefined calibration profiles for different quiz contexts |
+| Audience attribute tag cloud | Setup | Clickable tags describing audience characteristics to guide generation |
+| Quiz tone selector | Setup | Controls phrasing style (casual/witty, formal, family-friendly, pub banter) |
+| Round and question count configuration | Setup | User sets structure of quiz |
+| Difficulty distribution targeting | Setup | User sets desired easy/medium/hard ratio per round |
+| Answer reveal frequency | Setup | When answers are shown (per round, batched, end) |
+| Section card generation and selection | Sections | AI generates themed section ideas, user curates |
+| Estimated difficulty badges on sections | Sections | Each section shows likely difficulty range |
+| "Surprise me" auto-select | Sections | One-click AI-recommended section selection |
+| Section reordering | Sections | Drag to set round order |
+| Question/answer generation per round | Questions | AI generates Q&A candidates with difficulty scoring |
+| Accept/reject workflow | Questions | User curates questions into final list |
+| Live difficulty distribution tracker | Questions | Visual bar showing current vs target distribution |
+| Duplicate detection | Questions | Flags questions similar to already-accepted ones |
+| "Steal this question" cross-round move | Questions | Reassign question to different round |
+| "Generate more" with feedback and gap awareness | Questions | Guided regeneration avoiding rejected themes |
+| Web search verification | Verification | All Q&As fact-checked with sources |
+| Correction handling with difficulty re-scoring | Verification | Corrected answers reassessed for difficulty shift |
+| Unverifiable question handling | Verification | User confirms or provides correct answer |
+| Image selection per question | Images | AI-curated royalty-free images |
+| Image style preference | Images | Global style setting (photo, illustration, vintage, minimalist) |
+| Image alternatives and manual override | Images | User can browse alternatives or upload custom |
+| Fallback image strategy | Images | Tiered fallback when specific images unavailable |
+| Full quiz preview | Preview | Expandable view of all rounds and questions |
+| Estimated runtime calculator | Preview | Time estimate based on question count and reveal structure |
+| Host notes toggle | Preview | Optional speaker notes per slide |
+| Question/answer inline editing | Preview | Direct text editing before export |
+| Theme/branding selection | Preview | Color scheme, fonts, logo upload |
+| PowerPoint generation and download | Export | Final PPTX file output |
+
+---
+
+# PART 2: USER JOURNEY — DETAILED SPECIFICATION
+
+## Phase 1: Setup & Configuration
+
+### 2.1.1 Screen Layout
+
+Single-page setup wizard with clearly delineated sections. User scrolls or sections are presented as an accordion/stepper. All fields have sensible defaults so user can proceed quickly if desired.
+
+### 2.1.2 Audience Preset Selection
+
+**Purpose:** Sets baseline calibration for what constitutes "common knowledge" and appropriate difficulty anchoring.
+
+**UI Component:** Card selection or large radio buttons with icons and descriptions.
+
+**Options:**
+
+| Preset | Description | Calibration Effect |
+|--------|-------------|-------------------|
+| Casual Social | Friends at a house party, mixed knowledge levels | Skews accessible, forgives niche gaps |
+| Competitive League | Experienced quizzers, expects challenge | Higher baseline, niche knowledge acceptable |
+| Corporate Event | Professional context, mixed departments | Avoids controversial, skews broadly accessible |
+| International / Backpacker | Diverse cultural backgrounds | Penalizes Western-centric content heavily |
+| Family-Friendly | All ages including children | Simple language, no mature themes, very accessible |
+
+**Default:** Casual Social
+
+**Behavior:** Selection stores preset key in state. Calibration parameters derived from preset are applied during difficulty scoring.
+
+### 2.1.3 Audience Attribute Tag Cloud
+
+**Purpose:** Provides granular context about the specific audience to guide section themes and question content.
+
+**UI Component:** Cloud of clickable pill/tag elements. Tags highlight when selected. Grouped loosely by category but displayed in a visually mixed arrangement for scannability.
+
+**Tag Categories and Examples:**
+
+**Interests:**
+- Sports fans
+- Movie buffs
+- Music lovers
+- Gamers
+- Bookworms
+- Foodies
+- Tech enthusiasts
+- History nerds
+- Science geeks
+- Pop culture addicts
+- Travel lovers
+- Nature/outdoors
+- Fashion/style
+- Cars/motorsport
+- Politics followers
+- Business/finance
+- Art/design
+- Theatre/musicals
+- Reality TV watchers
+- Podcast listeners
+- Anime/manga fans
+- Comic book fans
+- True crime fans
+- DIY/crafts
+
+**Demographics:**
+- 80s kids
+- 90s kids
+- 2000s kids
+- Gen Z
+- Millennials
+- Gen X
+- Boomers
+- Mixed ages
+- Mostly 20s-30s
+- Mostly 40s-50s
+- Mostly male
+- Mostly female
+- Mixed gender
+
+**Context:**
+- Work colleagues
+- Strangers/new group
+- Close friends
+- Family members
+- Students
+- Professionals
+- Experts in their field
+- Casual/hobbyist knowledge
+
+**Geography (optional, if relevant):**
+- UK-based
+- US-based
+- Europe-based
+- Asia-based
+- Australia/NZ-based
+- Globally mixed
+
+**Behavior:**
+- User clicks tag to toggle selection
+- Selected tags visually distinguished (filled background, checkmark, or glow)
+- No hard limit but UI suggests "Select 5-10 that best describe your audience"
+- Selected tags stored as array in state
+- Tags are concatenated into a context string for LLM prompts
+
+**Default:** None selected (but setup can proceed without any)
+
+### 2.1.4 Quiz Tone Selector
+
+**Purpose:** Controls the linguistic style and personality of generated questions and host notes.
+
+**UI Component:** Radio button group or toggle cards with example snippets.
+
+**Options:**
+
+| Tone | Description | Example Phrasing |
+|------|-------------|------------------|
+| Casual / Witty | Conversational, light humor, informal | "Which pop princess told us to 'Hit me baby one more time'?" |
+| Formal / Professional | Clean, neutral, corporate-safe | "Which artist released the 1998 single 'Baby One More Time'?" |
+| Family-Friendly | Simple language, warm, no edge | "Which famous singer had a big hit song called 'Baby One More Time'?" |
+| Pub Banter | Cheeky, playful, light innuendo acceptable | "Which 90s icon asked us to hit her one more time and somehow meant it innocently?" |
+
+**Default:** Casual / Witty
+
+**Behavior:** Selection stored in state. Tone descriptor injected into all LLM generation prompts affecting phrasing.
+
+### 2.1.5 Quiz Structure Settings
+
+**Purpose:** Defines the shape of the quiz.
+
+**UI Components:**
+
+**Number of Rounds:**
+- Numeric input with increment/decrement stepper buttons
+- Minimum: 1
+- Maximum: 12
+- Default: 5
+- Label: "How many rounds?"
+
+**Questions per Round:**
+- Numeric input with increment/decrement stepper buttons
+- Minimum: 5
+- Maximum: 20
+- Default: 10
+- Label: "Questions per round?"
+
+**Calculated Display:**
+- Dynamic text: "Your quiz will have **[X] questions** across **[Y] rounds**"
+- Updates live as user adjusts inputs
+
+### 2.1.6 Difficulty Distribution
+
+**Purpose:** Sets the target mix of easy, medium, and hard questions per round to ensure balanced scoring.
+
+**Background — Difficulty Scoring System:**
+
+Each question is scored on four dimensions (1-5 scale):
+
+| Dimension | What It Measures |
+|-----------|------------------|
+| Knowledge Accessibility | How widely known is this fact? |
+| Cognitive Load | How much thinking/reasoning required? |
+| Cultural/Linguistic Accessibility | Is it globally accessible or culturally specific? |
+| Temporal Relevance | Is it timeless or dependent on recent events? |
+
+**Overall Difficulty Calculation:**
+```
+Overall = (Knowledge + Cognitive + Cultural + Temporal) / 4
+```
+
+**Banding:**
+| Score Range | Band |
+|-------------|------|
+| 1.0 – 2.0 | Easy |
+| 2.1 – 3.2 | Medium |
+| 3.3 – 5.0 | Hard |
+
+**UI Component:** Three sliders or preset selector.
+
+**Preset Options:**
+
+| Preset | Easy | Medium | Hard | Use Case |
+|--------|------|--------|------|----------|
+| Accessible | 6 | 3 | 1 | Social, charity, family |
+| Balanced | 4 | 4 | 2 | General pub quiz |
+| Challenging | 2 | 4 | 4 | League, competitive |
+| Custom | — | — | — | Manual sliders |
+
+**Slider Behavior (Custom mode):**
+- Three linked sliders that must sum to questions per round
+- Adjusting one automatically adjusts others proportionally
+- Or: two sliders, third is calculated remainder
+- Visual stacked bar shows proportion
+
+**Default:** Balanced
+
+**Behavior:** Target distribution stored in state. Used during question generation to guide output, and during curation to show progress toward target.
+
+### 2.1.7 Answer Reveal Frequency
+
+**Purpose:** Determines how answer slides are structured in the final presentation.
+
+**UI Component:** Radio button group.
+
+**Options:**
+
+| Option | Description | Slide Structure Impact |
+|--------|-------------|----------------------|
+| After each round | Answers shown at end of each round | Answer batch after every round's questions |
+| After every 2 rounds | Answers batched for two rounds | Answer batch after rounds 2, 4, 6, etc. |
+| At the end | All answers at the end of the quiz | Single large answer section after all questions |
+
+**Default:** After each round
+
+**Behavior:** Selection stored in state. Affects PPTX slide ordering logic.
+
+### 2.1.8 Context Notes (Optional)
+
+**Purpose:** Free-text field for any additional context the host wants to provide.
+
+**UI Component:** Textarea, optional.
+
+**Placeholder text:** "Any other context? E.g., 'It's a birthday party for someone turning 40' or 'Avoid questions about Company X, they're a competitor'"
+
+**Character limit:** 500 characters
+
+**Default:** Empty
+
+**Behavior:** If provided, appended to LLM context for all generation calls.
+
+### 2.1.9 Setup Completion
+
+**UI Component:** Primary button "Start Building Quiz"
+
+**Validation before proceeding:**
+- Rounds ≥ 1
+- Questions per round ≥ 5
+- Difficulty distribution sums to questions per round
+
+**On click:** Initialize full state object, transition to Phase 2.
+
+---
+
+## Phase 2: Section/Round Theme Selection
+
+### 2.2.1 Screen Layout
+
+**Header:** Quiz summary bar (sticky) showing "5 rounds × 10 questions = 50 total | Balanced difficulty | Casual tone"
+
+**Main area:** Grid of section cards (responsive: 3-4 columns desktop, 2 columns tablet, 1 column mobile)
+
+**Footer:** Action bar with selection counter, "Generate More" button, and "Continue" button
+
+### 2.2.2 Initial Section Generation
+
+**Trigger:** Automatic on entering Phase 2
+
+**System Action:**
+
+```
+LLM Call: Generate Section Ideas
+├── Model: Claude (claude-sonnet-4-20250514 recommended for speed/cost balance)
+├── System prompt: Include audience preset, selected attribute tags, tone, context notes
+├── User prompt: "Generate 30 unique quiz round theme ideas suitable for this audience..."
+├── Output format: Structured JSON array
+├── Response structure per section:
+│   {
+│     "id": "uuid",
+│     "name": "90s Pop Music",
+│     "description": "Chart-toppers, one-hit wonders, and iconic albums from the 1990s",
+│     "estimated_difficulty": "tends_easy",
+│     "category": "entertainment"
+│   }
+└── Post-processing: Validate JSON, assign UUIDs if not present, store in state
+```
+
+**Estimated Difficulty Logic:**
+- LLM assesses based on theme + audience calibration
+- Values: "tends_easy", "tends_medium", "tends_hard", "mixed"
+- This is an estimate only; actual difficulty determined at question level
+
+**Category Assignment:**
+- LLM assigns broad category for optional filtering
+- Categories: Entertainment, Science & Nature, History, Geography, Sports, Arts & Literature, Food & Drink, Music, Film & TV, General Knowledge, Lifestyle, Technology, Potpourri
+
+### 2.2.3 Section Card Display
+
+**Card Contents:**
+- Section name (prominent)
+- Description (2-3 sentences)
+- Estimated difficulty badge (color-coded: green=easy, amber=medium, red=hard, grey=mixed)
+- Category tag (small, subtle)
+- Selection state indicator (checkbox or visual highlight)
+
+**Card Interactions:**
+- Click anywhere on card to toggle selection
+- Selected cards: elevated shadow, colored border, checkmark overlay
+- Hover state: slight lift, cursor pointer
+
+### 2.2.4 Selection Counter and Validation
+
+**UI Component:** Sticky footer bar
+
+**Display:** "3 of 5 rounds selected"
+
+**Visual:** Progress dots or segments filling as selections made
+
+**Behavior:**
+- Counter updates immediately on selection/deselection
+- Cannot select more than required rounds
+- If user tries to select beyond limit: either prevent click or auto-deselect oldest selection (configure: prevent is safer UX)
+
+### 2.2.5 "Surprise Me" Auto-Select
+
+**Purpose:** Quick path for users who want AI to choose a balanced set of sections.
+
+**UI Component:** Secondary button in footer bar, "Surprise Me"
+
+**Behavior on click:**
+1. Clear any current selections
+2. AI selects optimal combination based on:
+   - Variety of categories (avoid clustering)
+   - Mix of estimated difficulties
+   - Relevance to audience attributes
+3. Animate selections appearing (sequential highlight, 200ms each)
+4. User can still manually adjust after
+
+**Implementation:**
+```
+LLM Call: Select optimal sections
+├── Input: All 30 generated sections, target round count, audience context
+├── Prompt: "Select [X] sections that would create the most engaging and varied quiz for this audience..."
+├── Output: Array of section IDs
+└── Action: Set selected state for returned IDs
+```
+
+**Alternative simpler implementation:**
+```
+Algorithm: Weighted random selection
+├── Score each section by:
+│   - Category diversity bonus (avoid repeats)
+│   - Difficulty variety bonus (mix easy/hard)
+│   - Audience relevance score (keyword match to tags)
+├── Select top-scoring combination
+└── With some randomness to avoid deterministic output
+```
+
+### 2.2.6 "Generate More" Sections
+
+**Purpose:** If user doesn't like available options, generate additional section ideas.
+
+**UI Component:** 
+- Secondary button "Generate More"
+- Expandable/collapsible text input below: "Optional: Guide the next generation"
+
+**Behavior on click:**
+1. Show loading state on button
+2. Make LLM call for 15 more sections (not 30, to avoid overwhelming)
+3. New sections appended to grid (not replacing)
+4. Smooth scroll/highlight to indicate new content
+5. Previously generated sections remain (including selected ones)
+
+**LLM Call includes:**
+- All previously generated section names (to avoid duplicates)
+- Any user feedback from text input
+- Original audience context
+
+**Prompt structure:**
+```
+"Generate 15 more unique quiz round theme ideas. 
+Avoid these already-generated themes: [list of existing section names]
+User feedback for this generation: [user input or 'None provided']
+Audience context: [preset + tags + tone + notes]"
+```
+
+**Generation limit:** Soft limit of 5 "Generate More" clicks (75 additional sections). After limit: show message "You've generated a lot of options! If none work, try adjusting your audience settings."
+
+### 2.2.7 Section Reordering
+
+**Purpose:** Set the order rounds will appear in the final quiz.
+
+**UI:** Once X sections are selected, show a secondary panel or modal "Set Round Order"
+
+**Component:** Drag-and-drop sortable list of selected sections
+
+**Behavior:**
+- Default order: order of selection
+- User can drag to reorder
+- Order stored in state as array of section IDs
+
+**Alternative UX:** Skip explicit reordering; order = selection order. Allow reorder in final preview phase. (Simpler to implement, may be sufficient for v1.)
+
+### 2.2.8 Difficulty Balance Warning
+
+**Purpose:** Warn user if selected sections skew heavily toward one difficulty.
+
+**Trigger:** After selection count reaches target
+
+**Logic:**
+```
+Count estimated difficulties of selected sections:
+- If ≥80% "tends_hard": show warning
+- If ≥80% "tends_easy": show warning (less critical but note it)
+- Otherwise: no warning
+```
+
+**UI:** Inline alert box above "Continue" button
+
+**Message example:** "Heads up: Your selected sections tend toward harder themes. You may find it difficult to generate enough easy questions to meet your target distribution. Continue anyway or adjust your selections."
+
+**Actions:** "Continue Anyway" (proceeds) | "Adjust Selections" (dismisses, user changes selections)
+
+### 2.2.9 Continue to Question Generation
+
+**UI Component:** Primary button "Continue" in footer bar
+
+**Enabled when:** Selected section count equals required round count
+
+**On click:**
+- Store selected sections with order in state
+- Clear generation memory (rejected themes) for fresh start
+- Navigate to Phase 3, starting with Round 1
+
+---
+
+## Phase 3: Question & Answer Generation
+
+### 2.3.1 Screen Layout
+
+**Split panel layout (desktop):**
+- Left panel (60%): Generation and curation area
+- Right panel (40%): Accepted questions list
+
+**Mobile:** Stacked layout with tab switching between candidates and accepted
+
+**Header:** 
+- Round indicator: "Round 2 of 5: 90s Pop Music"
+- Section description
+- Inspiration tags (generated alongside questions, showing themes within the round)
+
+### 2.3.2 Initial Question Generation
+
+**Trigger:** Automatic on entering each round's question generation screen
+
+**System Action:**
+
+```
+LLM Call: Generate Questions
+├── Model: Claude (claude-sonnet-4-20250514)
+├── System prompt: Difficulty calibration, tone, avoid duplicates instruction
+├── User prompt: "Generate 15 quiz questions for the round theme '[Section Name]'..."
+├── Required output structure (JSON):
+│   {
+│     "inspiration_tags": ["British artists", "one-hit wonders", "music videos"],
+│     "questions": [
+│       {
+│         "id": "uuid",
+│         "question": "Which British band had a 1997 hit with 'Bittersweet Symphony'?",
+│         "answer": "The Verve",
+│         "difficulty_scores": {
+│           "knowledge_accessibility": 2,
+│           "cognitive_load": 1,
+│           "cultural_linguistic": 3,
+│           "temporal_relevance": 2
+│         },
+│         "overall_difficulty": 2.0,
+│         "difficulty_band": "easy",
+│         "reasoning": "Well-known song, frequently referenced in media, straightforward recall"
+│       }
+│     ]
+│   }
+└── Post-processing: Validate JSON, run duplicate detection, store in state
+```
+
+**Duplicate Detection Integration:**
+
+Before storing generated questions, check each against:
+1. All previously accepted questions in other rounds
+2. All previously generated (not yet rejected) questions in current session
+
+**Duplicate detection logic:**
+```
+For each new question:
+├── Semantic similarity check against existing questions
+│   ├── Method: Embedding comparison OR
+│   ├── Method: LLM call "Are these questions asking essentially the same thing?"
+│   └── Threshold: >0.85 similarity = duplicate
+├── Answer overlap check
+│   └── If same answer AND similar topic = likely duplicate
+└── If duplicate detected:
+    ├── Flag question with "duplicate_of": [existing question ID]
+    └── Show badge in UI, allow user to keep if desired (edge case: same answer, different question is valid)
+```
+
+**Note on LLM repeat penalties:** LLMs have temperature and frequency/presence penalty parameters, but these operate within a single generation, not across calls. Cross-call duplicate prevention requires explicit tracking as described above.
+
+### 2.3.3 Question Card Display (Candidates)
+
+**Left panel shows scrollable list of candidate question cards.**
+
+**Card Contents:**
+- Question text (prominent)
+- Answer text (visible, slightly de-emphasized)
+- Difficulty badge: colored pill showing "Easy" / "Medium" / "Hard"
+- Duplicate warning badge (if flagged): "Similar to Q3 in Round 1" — clickable to see the original
+- Action buttons: Accept (✓) | Reject (✗)
+
+**Card States:**
+- Default: neutral background
+- Hover: slight highlight
+- Accepted: moves to right panel (animated), card removed from left or shown greyed with "Accepted" state
+- Rejected: fades out and removes from view (stored in rejection memory)
+
+### 2.3.4 Accepted Questions List (Right Panel)
+
+**Header:** "Accepted Questions (6/10)"
+
+**Difficulty Distribution Bar:**
+- Visual stacked bar showing current accepted breakdown
+- Target overlay or comparison: "Easy: 3/4 | Medium: 2/4 | Hard: 1/2"
+- Color coding matches difficulty badges
+- Animates as questions are accepted
+
+**Question List:**
+- Ordered list of accepted questions
+- Each shows: number, question text (truncated if long), difficulty badge
+- Hover: shows full question + answer
+- Click: expand to show full details
+- Remove button: moves question back to candidates (or generates replacement prompt)
+
+**"Steal This Question" Interaction:**
+- On each accepted question: secondary action "Move to different round"
+- Click opens dropdown: "Move to: Round 1 | Round 3 | Round 4..." (excludes current round)
+- On selection: question removed from current round, added to target round's accepted list
+- Warning if target round already has full question count
+
+### 2.3.5 Live Gap Analysis
+
+**Purpose:** Guide user toward completing a balanced round.
+
+**Display:** Below the difficulty distribution bar
+
+**Dynamic message examples:**
+- "You need 2 more easy questions and 1 hard question"
+- "Almost there! Just 1 more medium question"
+- "Round complete! Review your questions or continue"
+
+**Behavior:** Updates immediately on accept/reject actions.
+
+### 2.3.6 "Generate More" Questions
+
+**UI Component:**
+- Button "Generate More Questions"
+- Expandable text input: "Guide this generation (optional)"
+
+**Automatic prompt enhancement:**
+Based on current gaps, system constructs optimized prompt:
+
+```
+User clicked "Generate More"
+├── Current gaps: Easy -2, Medium -1, Hard +1 (have extra hard)
+├── Rejected question themes: ["Beatles songs", "album covers", "British artists"]
+├── System constructs prompt:
+│   "Generate 10 more questions for '90s Pop Music'.
+│    Prioritize: 2 EASY questions, 1 MEDIUM question
+│    Avoid themes already covered or rejected: Beatles songs, album covers, British artists
+│    User guidance: [user input if provided]"
+└── Append results to candidates list
+```
+
+**Generation limit:** 5 "Generate More" per round. After limit: "Having trouble finding the right questions? Try adjusting this round's theme or difficulty targets."
+
+### 2.3.7 Duplicate Detection Badge Details
+
+**When displayed:** Question is flagged as similar to existing accepted question
+
+**Badge appearance:** Yellow/orange warning pill "Similar to existing"
+
+**Click interaction:** Tooltip or modal showing:
+- The original question it's similar to
+- Which round the original is in
+- Options: "Keep anyway" | "Reject"
+
+**"Keep anyway" behavior:**
+- User confirms they want both questions despite similarity
+- Badge changes to grey "Acknowledged duplicate"
+- Both questions remain
+
+### 2.3.8 Round Completion
+
+**Trigger:** Accepted question count equals target AND difficulty distribution within tolerance
+
+**Tolerance:** Allow ±1 per difficulty band (e.g., target 4 easy, accept 3-5)
+
+**UI:** 
+- Distribution bar shows "Complete" state (all green)
+- "Next Round" button becomes primary
+- Optional: celebration micro-animation
+
+**If imbalanced completion:**
+- User has 10 questions but wrong distribution
+- Warning: "Your difficulty balance is off (3 easy, 5 medium, 2 hard vs. target 4/4/2). Continue anyway?"
+- "Continue with imbalance" | "Adjust questions"
+
+### 2.3.9 Navigation Between Rounds
+
+**After completing round 1:** "Next Round" goes to round 2's question generation
+
+**Round indicator in header:** Clickable, allows jumping back to previous rounds to make edits
+
+**State preservation:** All rounds maintain their state; returning to a completed round shows the accepted questions with ability to modify
+
+**Progress indicator:** Step dots or progress bar showing overall completion
+
+### 2.3.10 Phase 3 Completion
+
+**Trigger:** All rounds have required questions accepted
+
+**UI:** "All rounds complete! Proceed to Verification" button
+
+**Transition:** Navigate to Phase 4
+
+---
+
+## Phase 4: Verification
+
+### 2.4.1 Screen Layout
+
+**Header:** "Verifying Your Quiz" with overall progress bar
+
+**Main area:** Three collapsible sections for result categories
+
+**Footer:** "Continue to Images" button (disabled until all resolved)
+
+### 2.4.2 Verification Process
+
+**Trigger:** Automatic on entering Phase 4
+
+**System Action:**
+
+```
+Verification Agent (parallelized across questions)
+├── For each Q&A:
+│   ├── Web search: Query constructed from question + answer
+│   │   └── Example: "The Verve Bittersweet Symphony 1997" 
+│   ├── Analyze search results
+│   │   ├── Look for confirming sources
+│   │   ├── Look for contradicting information
+│   │   └── Assess source quality (prefer authoritative: Wikipedia, official sites, news)
+│   ├── Determine status:
+│   │   ├── VERIFIED: Multiple reliable sources confirm answer
+│   │   ├── CORRECTED: Sources indicate different answer
+│   │   └── UNVERIFIABLE: Insufficient information to confirm or deny
+│   └── Store sources and confidence reasoning
+└── Aggregate results, group by status
+```
+
+**Parallelization:** Run verification in batches (e.g., 10 concurrent) to balance speed and rate limits.
+
+**Progress indication:** 
+- "Verifying question 23 of 50..."
+- Progress bar fills as questions complete
+- Estimated time remaining
+
+### 2.4.3 Results Display — Verified Questions
+
+**Section header:** "✓ Verified (42 questions)" — collapsible, collapsed by default
+
+**Content when expanded:**
+- List of questions with "Verified" badge
+- Each shows: question, answer, source snippet (truncated)
+- Expandable to see full source details
+
+**No action required** — these are confirmed correct
+
+### 2.4.4 Results Display — Corrected Questions
+
+**Section header:** "⚠ Corrections Needed (5 questions)" — expanded by default if any exist
+
+**Card for each corrected question:**
+- Question text
+- Original answer (with strikethrough)
+- Suggested corrected answer (highlighted)
+- Source snippet showing correction evidence
+- Difficulty impact warning (if correction shifts difficulty band)
+- Actions: "Accept Correction" | "Keep Original" | "Edit Manually"
+
+**Difficulty impact logic:**
+```
+If correction changes answer:
+├── Re-run difficulty scoring on corrected Q&A
+├── Compare new difficulty_band to original
+├── If different: show warning
+│   └── "This correction changes the difficulty from Easy to Medium"
+└── Update round distribution display
+```
+
+**"Accept Correction" behavior:**
+- Replaces original answer with corrected answer
+- Updates difficulty scores if changed
+- Moves question to Verified category
+
+**"Keep Original" behavior:**
+- User asserts original is correct (perhaps AI verification was wrong)
+- Mark as "User Confirmed" — not AI verified
+- Move to Verified category with note
+
+**"Edit Manually" behavior:**
+- Opens inline edit fields for question and answer
+- On save: re-runs verification on new answer (or marks as User Provided)
+
+### 2.4.5 Results Display — Unverifiable Questions
+
+**Section header:** "? Needs Review (3 questions)" — expanded by default if any exist
+
+**Card for each unverifiable question:**
+- Question text
+- Current answer
+- Reason: "Could not find reliable sources to verify this answer"
+- Search queries attempted (transparency)
+- Actions: "Confirm Answer is Correct" | "Edit Answer" | "Replace Question"
+
+**"Confirm Answer is Correct" behavior:**
+- User asserts correctness from their knowledge
+- Mark as "User Confirmed"
+- Move to Verified
+
+**"Edit Answer" behavior:**
+- Inline edit field
+- Optional: re-run verification after edit
+
+**"Replace Question" behavior:**
+- Opens mini-generation UI
+- "Generate a replacement question for [Round Name]"
+- Shows 3-5 candidates
+- User selects one
+- New question goes through verification before being added
+
+### 2.4.6 Verification Completion
+
+**Trigger:** All questions in Verified or User Confirmed state (none pending in Corrected or Unverifiable)
+
+**UI:** 
+- "All questions verified!" message
+- "Continue to Images" button enabled
+- Optional stats: "42 auto-verified, 5 corrected, 3 manually confirmed"
+
+---
+
+## Phase 5: Image Selection
+
+### 2.5.1 Screen Layout
+
+**Header:** "Add Images to Your Quiz"
+
+**Sub-header:** Image style preference selector
+
+**Main area:** Grid of question cards with images
+
+**Footer:** Progress indicator, "Continue to Preview" button
+
+### 2.5.2 Image Style Preference
+
+**Purpose:** Global setting that affects all image searches for consistent visual style.
+
+**UI Component:** Radio button group or card selector at top of screen
+
+**Options:**
+
+| Style | Description | Search Modifiers |
+|-------|-------------|------------------|
+| Photography | Real photos, high quality | "photo" keyword, filter: photos only |
+| Illustration | Drawn, artistic, vector | "illustration" OR "vector" keyword |
+| Vintage / Retro | Old style, aged aesthetic | "vintage" OR "retro" keyword |
+| Minimalist | Clean, simple, graphic | "minimal" OR "simple" OR "icon" keyword |
+| Any / Mixed | No preference, best match wins | No modifier |
+
+**Default:** Photography
+
+**Behavior:** Selection stored in state. Applied to all image searches. User can change at any time; changing re-queries for all questions (confirm dialog: "Change style for all images? This will search again for new options.")
+
+### 2.5.3 Initial Image Search
+
+**Trigger:** Automatic on entering Phase 5
+
+**System Action:**
+
+```
+Image Agent (parallelized)
+├── For each question:
+│   ├── Extract visual subject
+│   │   └── LLM call: "What is the best visual subject for this quiz question: [question + answer]?"
+│   │   └── Output: "The Verve band" or "Bittersweet Symphony music video" or "90s British rock"
+│   ├── Search royalty-free image APIs
+│   │   ├── Primary sources: Unsplash, Pexels, Pixabay
+│   │   ├── Query: [visual subject] + [style modifier]
+│   │   └── Retrieve top 10 results
+│   ├── Rank results by relevance
+│   │   └── LLM scoring or heuristic (size, orientation, quality indicators)
+│   ├── Select top match
+│   ├── Cache alternatives (positions 2-6) for user selection
+│   └── Apply fallback chain if insufficient results
+└── Store results in state
+```
+
+**Fallback Chain:**
+```
+Tier 1: Specific subject ("The Verve band photo")
+├── If <3 results, proceed to Tier 2
+Tier 2: Category subject ("90s British rock band")
+├── If <3 results, proceed to Tier 3
+Tier 3: Abstract/thematic ("music concert stage")
+├── If <3 results, proceed to Tier 4
+Tier 4: Text-only fallback
+└── Use stylized background with question text only
+```
+
+**Track fallback tier used** for each image (displayed subtly to user)
+
+### 2.5.4 Question Image Card Display
+
+**Grid of cards, one per question (responsive layout)**
+
+**Card contents:**
+- Question text (truncated to 2 lines)
+- Answer text (small)
+- Round badge ("Round 2")
+- Selected image (thumbnail, ~200px)
+- Fallback tier indicator (if not Tier 1): small badge "Category image" or "Thematic image"
+- Action buttons: "Change" | "No Image"
+
+**Card states:**
+- Default: auto-selected image shown
+- Custom: user has selected alternative or uploaded
+- No image: text-only slide selected
+
+### 2.5.5 Change Image Interaction
+
+**Trigger:** User clicks "Change" on a card
+
+**UI:** Modal or slide-out panel
+
+**Contents:**
+- Larger view of current image
+- Row of alternative images (cached from search)
+- Search bar: "Search for a different image"
+- Upload button: "Upload custom image"
+- Style filter: can override global style for this question only
+
+**Search within modal:**
+- User types custom query
+- Real-time search results populate
+- Click to select
+
+**Upload:**
+- File picker (jpg, png, gif, webp)
+- Max file size: 5MB
+- On upload: show preview, confirm
+- Stored locally (or uploaded to temp storage)
+
+**Select alternative:**
+- Click any alternative image
+- Becomes the selected image for that question
+
+**Close modal:** 
+- Selection saved
+- Card thumbnail updates
+
+### 2.5.6 "No Image" Option
+
+**Purpose:** Some hosts prefer text-only slides, or no suitable image exists.
+
+**Behavior:**
+- Click "No Image" button on card
+- Card shows "Text Only" placeholder
+- In final PPTX: slide has stylized background with question/answer text only, no image
+
+### 2.5.7 Batch Actions
+
+**Purpose:** Speed up workflow for users happy with auto-selections.
+
+**UI:** Action bar above grid
+
+**Options:**
+- "Accept All Auto-Selected" — locks in all current selections, user can still change individually after
+- "Set All to Text-Only" — removes all images (rare use case, but available)
+
+### 2.5.8 Progress and Completion
+
+**Progress indicator:** "47 of 50 images selected"
+
+**Image counts as "selected" when:**
+- Auto-selection accepted (explicit or implicit)
+- User chose alternative
+- User uploaded custom
+- User chose text-only
+
+**All are "selected" by default on first load** (auto-selected images). User is reviewing/modifying.
+
+**Continue enabled:** Always (all have default selections)
+
+**Continue button:** "Continue to Preview"
+
+---
+
+## Phase 6: Preview & Export
+
+### 2.6.1 Screen Layout
+
+**Header:** "Preview Your Quiz"
+
+**Sub-header bar:** 
+- Estimated runtime display
+- Host notes toggle
+- Theme selector
+
+**Main area:** Expandable round-by-round preview
+
+**Footer:** "Export PowerPoint" primary button
+
+### 2.6.2 Estimated Runtime Calculator
+
+**Purpose:** Help host plan their event timing.
+
+**UI Component:** Prominent display in sub-header: "Estimated runtime: ~45 minutes"
+
+**Calculation:**
+
+```
+Base times (configurable defaults):
+├── Per question (read + thinking time): 30 seconds
+├── Per answer reveal: 15 seconds
+├── Per round intro slide: 20 seconds
+├── Buffer between rounds: 30 seconds
+└── Title and closing slides: 60 seconds total
+
+Calculation:
+├── question_time = num_questions × 30
+├── answer_time = num_questions × 15
+├── round_overhead = num_rounds × (20 + 30)
+├── bookend_time = 60
+├── total_seconds = question_time + answer_time + round_overhead + bookend_time
+└── Display as "~X minutes" (rounded to nearest 5)
+
+Example (5 rounds × 10 questions = 50 questions):
+├── 50 × 30 = 1500s questions
+├── 50 × 15 = 750s answers  
+├── 5 × 50 = 250s rounds
+├── 60s bookends
+├── Total = 2560s = ~43 minutes → "~45 minutes"
+```
+
+**Display:** "Estimated runtime: ~45 minutes (50 questions, 5 rounds)"
+
+**Optional:** Editable time assumptions (advanced setting)
+
+### 2.6.3 Host Notes Toggle
+
+**Purpose:** Add optional speaker notes to slides with hints, pronunciation guides, or fun facts.
+
+**UI Component:** Toggle switch in sub-header: "Include host notes"
+
+**Default:** Off
+
+**When enabled:**
+1. Trigger LLM generation for host notes (if not already generated)
+2. Show notes preview in expandable question details
+
+**Host Notes Generation:**
+
+```
+LLM Call: Generate Host Notes
+├── Run once for all questions (batched or parallelized)
+├── Per question output:
+│   {
+│     "question_id": "uuid",
+│     "host_notes": "Pronunciation: 'VERV' (rhymes with nerve). Fun fact: This song famously sampled an orchestral version of a Rolling Stones track, leading to a lawsuit."
+│   }
+└── Store in state, attached to each question
+```
+
+**Note content types:**
+- Pronunciation guides for tricky names
+- Fun facts or context
+- Common wrong answers to anticipate
+- Hints the host can give if needed
+
+**PPTX behavior when enabled:**
+- Host notes added to PowerPoint speaker notes field for each question slide
+- Not visible during presentation, only in presenter view
+
+### 2.6.4 Quiz Structure Preview
+
+**Main area content:** Accordion-style expandable sections
+
+**Structure:**
+```
+▼ Quiz Overview
+  - Title: [Editable text field, default "Quiz Night"]
+  - Total questions: 50
+  - Total rounds: 5
+  - Difficulty breakdown: 20 Easy, 20 Medium, 10 Hard
+
+▼ Round 1: 90s Pop Music (10 questions)
+  - Difficulty: 4 Easy, 4 Medium, 2 Hard
+  ├── Q1: Which British band had a 1997 hit with 'Bittersweet Symphony'?
+  │   └── A: The Verve [Easy] [Image: ✓]
+  ├── Q2: ...
+  └── Q10: ...
+  
+▼ Round 2: World Geography (10 questions)
+  ...
+
+▼ Round 5: Science & Nature (10 questions)
+  ...
+```
+
+**Question row interactions:**
+- Click to expand: shows full question, answer, difficulty, image thumbnail, host notes (if enabled)
+- "Edit" button: inline edit for question and answer text
+- "Change Image" button: opens image modal (same as Phase 5)
+- Drag handle: reorder questions within round
+
+### 2.6.5 Inline Editing
+
+**Purpose:** Last-chance text corrections without going back to earlier phases.
+
+**Question text edit:**
+- Click field or edit button
+- Contenteditable or input field
+- Save on blur or Enter
+- No re-verification (user is taking responsibility)
+
+**Answer text edit:**
+- Same interaction
+- Warning tooltip: "Editing answers may affect accuracy. This answer was previously verified."
+
+**Changes update state immediately**
+
+### 2.6.6 Theme/Branding Selection
+
+**UI Component:** "Customize Appearance" expandable section or side panel
+
+**Options:**
+
+**Color Scheme:**
+- Preset palettes: Classic (navy/white), Modern (dark grey/yellow), Vibrant (purple/orange), Custom
+- Custom: primary color picker, secondary color picker
+- Preview updates live
+
+**Font Style:**
+- Options: Clean (Arial/Helvetica), Elegant (Georgia/Serif), Fun (Rounded sans), Bold (Impact-style)
+- Affects headings and body text
+
+**Logo Upload:**
+- Optional
+- File picker (png, jpg, svg)
+- Position: top-left of all slides or title slide only
+- Max size: 2MB
+
+**Background:**
+- Solid color (from palette)
+- Subtle pattern
+- Gradient
+- Custom image upload (with opacity overlay for text readability)
+
+### 2.6.7 Export PowerPoint
+
+**UI Component:** Primary button "Export PowerPoint"
+
+**On click:**
+1. Button shows loading state: "Generating..."
+2. Progress indicator: "Building slide 23 of 110..."
+3. Server-side PPTX generation (see Technical Specification)
+4. On complete: auto-download triggers, or "Download Ready" button appears
+5. Success message: "Your quiz is ready! The file has been downloaded."
+
+**File naming:** "Quiz_Night_[date].pptx" or user-provided title + date
+
+**Post-export options:**
+- "Create Another Quiz" — returns to Phase 1
+- "Edit This Quiz" — stays on preview for further changes
+- "Download Again" — re-downloads same file
+
+---
+
+# PART 3: TECHNICAL SPECIFICATION
+
+## 3.1 Technology Stack
+
+### Recommended Stack
+
+| Layer | Technology | Rationale |
+|-------|------------|-----------|
+| Frontend | React 18+ with TypeScript | Industry standard, excellent tooling |
+| State Management | Zustand or React Context | Simpler than Redux for this scope |
+| Styling | Tailwind CSS | Rapid development, consistent design |
+| UI Components | shadcn/ui | High-quality, accessible components |
+| Backend | Node.js with Express or Fastify | JS ecosystem alignment, easy deployment |
+| LLM Integration | Anthropic Claude API | Structured output support, quality |
+| Web Search | Anthropic tool use or Tavily API | Verification and image search |
+| Image Search | Unsplash API, Pexels API, Pixabay API | Royalty-free, good coverage |
+| PPTX Generation | PptxGenJS (Node) | Full-featured, maintained |
+| Deployment | Vercel (frontend) + Railway/Render (backend) | Easy, scalable |
+
+### Alternative Stack (Python Backend)
+
+| Layer | Technology |
+|-------|------------|
+| Backend | FastAPI |
+| PPTX Generation | python-pptx |
+| Other layers | Same as above |
+
+## 3.2 State Management
+
+### Global State Object
+
+```typescript
+interface QuizState {
+  // Phase 1: Setup
+  config: {
+    audiencePreset: AudiencePreset;
+    audienceAttributes: string[];
+    tone: QuizTone;
+    roundCount: number;
+    questionsPerRound: number;
+    difficultyTarget: DifficultyDistribution;
+    answerRevealFrequency: AnswerRevealFrequency;
+    contextNotes: string;
+  };
+  
+  // Phase 2: Sections
+  sections: {
+    generated: Section[];
+    selected: string[]; // ordered array of section IDs
+    generationCount: number;
+  };
+  
+  // Phase 3: Questions
+  rounds: Round[];
+  
+  // Phase 4: Verification
+  verification: {
+    status: 'pending' | 'in_progress' | 'complete';
+    progress: number; // 0-100
+  };
+  
+  // Phase 5: Images
+  images: {
+    stylePreference: ImageStyle;
+    questions: QuestionImage[];
+  };
+  
+  // Phase 6: Preview
+  presentation: {
+    title: string;
+    theme: ThemeConfig;
+    hostNotesEnabled: boolean;
+    hostNotes: HostNote[];
+  };
+  
+  // Cross-cutting
+  generationMemory: {
+    rejectedSectionThemes: string[];
+    rejectedQuestionThemes: Map<string, string[]>; // roundId -> themes
+    acceptedQuestions: Question[]; // for duplicate detection
+  };
+  
+  // UI State
+  currentPhase: Phase;
+  currentRoundIndex: number;
+}
+
+type AudiencePreset = 'casual_social' | 'competitive_league' | 'corporate' | 'international' | 'family_friendly';
+
+type QuizTone = 'casual_witty' | 'formal_professional' | 'family_friendly' | 'pub_banter';
+
+interface DifficultyDistribution {
+  easy: number;
+  medium: number;
+  hard: number;
+}
+
+type AnswerRevealFrequency = 'after_each_round' | 'after_two_rounds' | 'at_end';
+
+interface Section {
+  id: string;
+  name: string;
+  description: string;
+  estimatedDifficulty: 'tends_easy' | 'tends_medium' | 'tends_hard' | 'mixed';
+  category: string;
+}
+
+interface Round {
+  sectionId: string;
+  questions: {
+    candidates: Question[];
+    accepted: Question[];
+  };
+  difficultyDistribution: DifficultyDistribution;
+  isComplete: boolean;
+}
+
+interface Question {
+  id: string;
+  question: string;
+  answer: string;
+  difficultyScores: {
+    knowledgeAccessibility: number;
+    cognitiveLoad: number;
+    culturalLinguistic: number;
+    temporalRelevance: number;
+  };
+  overallDifficulty: number;
+  difficultyBand: 'easy' | 'medium' | 'hard';
+  verification: {
+    status: 'pending' | 'verified' | 'corrected' | 'unverifiable' | 'user_confirmed';
+    originalAnswer?: string;
+    correctedAnswer?: string;
+    sources: Source[];
+    difficultyShifted?: boolean;
+  };
+  duplicateOf?: string; // question ID if flagged as duplicate
+  duplicateAcknowledged?: boolean;
+}
+
+interface Source {
+  url: string;
+  title: string;
+  snippet: string;
+}
+
+type ImageStyle = 'photography' | 'illustration' | 'vintage' | 'minimalist' | 'any';
+
+interface QuestionImage {
+  questionId: string;
+  selectedImage: Image | null;
+  alternatives: Image[];
+  fallbackTier: 1 | 2 | 3 | 4;
+  isTextOnly: boolean;
+}
+
+interface Image {
+  url: string;
+  thumbnailUrl: string;
+  source: 'unsplash' | 'pexels' | 'pixabay' | 'upload';
+  attribution: string;
+  width: number;
+  height: number;
+}
+
+interface ThemeConfig {
+  colorScheme: {
+    primary: string;
+    secondary: string;
+    background: string;
+    text: string;
+  };
+  fontStyle: 'clean' | 'elegant' | 'fun' | 'bold';
+  logoUrl?: string;
+  logoPosition: 'all_slides' | 'title_only';
+  backgroundStyle: 'solid' | 'pattern' | 'gradient' | 'image';
+  backgroundImage?: string;
+}
+
+interface HostNote {
+  questionId: string;
+  notes: string;
+}
+
+type Phase = 'setup' | 'sections' | 'questions' | 'verification' | 'images' | 'preview';
+```
+
+## 3.3 API Endpoints
+
+### Backend REST API
+
+```
+POST /api/generate/sections
+├── Request: { config: Config, existingThemes?: string[], userFeedback?: string }
+├── Response: { sections: Section[] }
+└── Calls: Claude API for section generation
+
+POST /api/generate/questions
+├── Request: { section: Section, config: Config, rejectedThemes: string[], difficultyGaps: DifficultyDistribution, userFeedback?: string }
+├── Response: { inspirationTags: string[], questions: Question[] }
+└── Calls: Claude API for question generation
+
+POST /api/verify/questions
+├── Request: { questions: Question[] }
+├── Response: { results: VerificationResult[] }
+└── Calls: Web search tool for each question (parallelized)
+
+POST /api/generate/host-notes
+├── Request: { questions: Question[] }
+├── Response: { notes: HostNote[] }
+└── Calls: Claude API for host notes generation
+
+POST /api/images/search
+├── Request: { questions: Question[], style: ImageStyle }
+├── Response: { results: QuestionImage[] }
+└── Calls: Image APIs (Unsplash, Pexels, Pixabay)
+
+POST /api/images/search-custom
+├── Request: { query: string, style: ImageStyle }
+├── Response: { images: Image[] }
+└── Calls: Image APIs with custom query
+
+POST /api/export/pptx
+├── Request: { state: QuizState }
+├── Response: Binary file (application/vnd.openxmlformats-officedocument.presentationml.presentation)
+└── Generates: PPTX file using PptxGenJS
+
+POST /api/duplicate-check
+├── Request: { newQuestions: Question[], existingQuestions: Question[] }
+├── Response: { duplicates: { newId: string, existingId: string, similarity: number }[] }
+└── Calls: Embedding API or Claude for similarity check
+```
+
+## 3.4 LLM Prompt Templates
+
+### Section Generation Prompt
+
+```
+System: You are a quiz content designer. Generate engaging quiz round themes.
+
+Context:
+- Audience type: {audiencePreset}
+- Audience attributes: {audienceAttributes.join(', ')}
+- Quiz tone: {tone}
+- Additional context: {contextNotes}
+
+User: Generate {count} unique quiz round theme ideas for this audience.
+
+Requirements:
+- Each theme should be specific enough to generate 10+ questions
+- Vary the categories (entertainment, history, science, geography, etc.)
+- Consider the audience's likely knowledge areas
+- Avoid themes that are too niche for the audience type
+- Estimate difficulty based on how accessible the topic is to this audience
+
+Already generated themes to avoid: {existingThemes.join(', ')}
+
+User feedback for this generation: {userFeedback || 'None'}
+
+Output as JSON array:
+[
+  {
+    "id": "unique-id",
+    "name": "Theme Name",
+    "description": "2-3 sentence description of what this round covers",
+    "estimatedDifficulty": "tends_easy|tends_medium|tends_hard|mixed",
+    "category": "entertainment|science|history|geography|sports|arts|food|music|film|general|lifestyle|technology|potpourri"
+  }
+]
+```
+
+### Question Generation Prompt
+
+```
+System: You are a quiz question writer. Generate trivia questions with accurate difficulty scoring.
+
+Context:
+- Audience type: {audiencePreset}
+- Audience attributes: {audienceAttributes.join(', ')}
+- Quiz tone: {tone}
+- Round theme: {section.name}
+- Theme description: {section.description}
+
+Difficulty calibration for this audience:
+- Knowledge Accessibility: 1 = Everyone knows, 5 = Expert only
+- Cognitive Load: 1 = Pure recall, 5 = Complex reasoning
+- Cultural/Linguistic: 1 = Globally accessible, 5 = Very region-specific
+- Temporal Relevance: 1 = Timeless, 5 = Very recent/obscure time
+
+Target difficulty distribution: {difficultyTarget.easy} easy, {difficultyTarget.medium} medium, {difficultyTarget.hard} hard
+
+User: Generate {count} quiz questions for this round.
+
+Requirements:
+- Questions should match the tone specified
+- Answers should be unambiguous and verifiable
+- Avoid questions with disputed or multiple valid answers
+- Score each question honestly on all four difficulty dimensions
+- Aim to help achieve the target difficulty distribution
+
+Rejected themes/topics to avoid: {rejectedThemes.join(', ')}
+Priority for this generation: Generate more {priorityDifficulty} questions
+
+User guidance: {userFeedback || 'None'}
+
+Output as JSON:
+{
+  "inspirationTags": ["tag1", "tag2", "tag3"],
+  "questions": [
+    {
+      "id": "unique-id",
+      "question": "Full question text?",
+      "answer": "Correct answer",
+      "difficultyScores": {
+        "knowledgeAccessibility": 1-5,
+        "cognitiveLoad": 1-5,
+        "culturalLinguistic": 1-5,
+        "temporalRelevance": 1-5
+      },
+      "overallDifficulty": calculated average,
+      "difficultyBand": "easy|medium|hard",
+      "reasoning": "Brief explanation of difficulty assessment"
+    }
+  ]
+}
+```
+
+### Host Notes Generation Prompt
+
+```
+System: You are a quiz host assistant. Generate helpful speaker notes for quiz hosts.
+
+User: Generate host notes for each of these quiz questions:
+
+{questions.map(q => `Q: ${q.question}\nA: ${q.answer}`).join('\n\n')}
+
+For each question, provide:
+- Pronunciation guides for any tricky words or names
+- A fun fact or interesting context (1-2 sentences)
+- Common wrong answers people might give
+- Optional hints the host could give if the audience is struggling
+
+Keep notes concise (2-4 sentences max per question).
+Tone: Helpful and informative for the host, not the audience.
+
+Output as JSON array:
+[
+  {
+    "questionId": "id",
+    "notes": "Full host notes text"
+  }
+]
+```
+
+### Visual Subject Extraction Prompt
+
+```
+System: You are helping find images for quiz slides.
+
+User: What is the best visual subject to search for to illustrate this quiz question?
+
+Question: {question}
+Answer: {answer}
+
+Provide a short search query (2-5 words) that would find a relevant, interesting image.
+Prefer concrete visual subjects over abstract concepts.
+If the answer is a person, place, or thing, that's usually the best subject.
+
+Output just the search query, nothing else.
+```
+
+### Duplicate Detection Prompt
+
+```
+System: You are detecting duplicate or highly similar quiz questions.
+
+User: Are these two questions essentially asking the same thing or testing the same knowledge?
+
+Question A: {questionA}
+Answer A: {answerA}
+
+Question B: {questionB}
+Answer B: {answerB}
+
+Consider:
+- Are they asking about the same fact from different angles?
+- Would knowing one answer definitely give away the other?
+- Is there significant overlap in what knowledge is being tested?
+
+Output JSON:
+{
+  "isDuplicate": true|false,
+  "similarity": 0.0-1.0,
+  "reasoning": "Brief explanation"
+}
+```
+
+## 3.5 PPTX Generation Specification
+
+### Slide Structure
+
+```
+Title Slide
+├── Quiz title (editable)
+├── Optional logo
+├── Optional subtitle ("50 Questions, 5 Rounds")
+└── Theme styling applied
+
+For each round:
+├── Round Intro Slide
+│   ├── "Round {n}: {Section Name}"
+│   ├── Section description
+│   └── Optional round-specific graphic
+│
+├── Question Slides (×10 or configured number)
+│   ├── Question number badge: "Q{n}"
+│   ├── Question text (large, readable)
+│   ├── Image (positioned right or bottom, if not text-only)
+│   ├── Theme styling
+│   └── Host notes in speaker notes field (if enabled)
+│
+└── Answer Slides (if reveal point)
+    ├── Question text (repeated)
+    ├── Answer text (revealed position, different color/style)
+    ├── Same image as question slide
+    └── Round/question number reference
+
+Closing Slide
+├── "Thanks for playing!" or custom text
+├── Optional logo
+└── Final theming
+```
+
+### Animation Approach
+
+Given complexity concerns, use **two-slide approach** (not animations):
+
+**Question Slide:** Shows question + image, answer NOT present
+**Answer Slide:** Shows question + image + answer (answer in distinct style)
+
+Host advances: Question → Answer → Next Question → etc.
+
+This is more robust than click-to-reveal animations and works reliably across PowerPoint versions.
+
+### PptxGenJS Implementation Notes
+
+```javascript
+const pptx = new PptxGenJS();
+
+// Set theme
+pptx.defineSlideMaster({
+  title: 'QUIZ_MASTER',
+  background: { color: theme.background },
+  objects: [
+    // Logo if configured
+    { image: { x: 0.5, y: 0.3, w: 1.0, h: 0.5, path: logoUrl } },
+  ],
+});
+
+// Title slide
+const titleSlide = pptx.addSlide({ masterName: 'QUIZ_MASTER' });
+titleSlide.addText(title, { x: 1, y: 2, w: 8, h: 1.5, fontSize: 44, color: theme.primary, fontFace: theme.font });
+
+// Question slide
+const qSlide = pptx.addSlide({ masterName: 'QUIZ_MASTER' });
+qSlide.addText(`Q${num}`, { x: 0.5, y: 0.3, w: 1, h: 0.5, fontSize: 24, bold: true });
+qSlide.addText(questionText, { x: 0.5, y: 1.5, w: 5.5, h: 2, fontSize: 28 });
+if (imageUrl) {
+  qSlide.addImage({ path: imageUrl, x: 6.5, y: 1.5, w: 3, h: 2.5 });
+}
+if (hostNotes) {
+  qSlide.addNotes(hostNotes);
+}
+
+// Answer slide
+const aSlide = pptx.addSlide({ masterName: 'QUIZ_MASTER' });
+aSlide.addText(`Q${num}`, { x: 0.5, y: 0.3, w: 1, h: 0.5, fontSize: 24, bold: true });
+aSlide.addText(questionText, { x: 0.5, y: 1.5, w: 5.5, h: 1.5, fontSize: 24, color: theme.secondary });
+aSlide.addText(answerText, { x: 0.5, y: 3.5, w: 5.5, h: 1, fontSize: 32, bold: true, color: theme.primary });
+if (imageUrl) {
+  aSlide.addImage({ path: imageUrl, x: 6.5, y: 1.5, w: 3, h: 2.5 });
+}
+
+// Generate file
+const pptxBuffer = await pptx.write({ outputType: 'nodebuffer' });
+```
+
+## 3.6 Image API Integration
+
+### Unsplash API
+
+```javascript
+const searchUnsplash = async (query: string, style: ImageStyle) => {
+  const modifiedQuery = applyStyleModifier(query, style);
+  const response = await fetch(
+    `https://api.unsplash.com/search/photos?query=${encodeURIComponent(modifiedQuery)}&per_page=10`,
+    { headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` } }
+  );
+  const data = await response.json();
+  return data.results.map(photo => ({
+    url: photo.urls.regular,
+    thumbnailUrl: photo.urls.thumb,
+    source: 'unsplash',
+    attribution: `Photo by ${photo.user.name} on Unsplash`,
+    width: photo.width,
+    height: photo.height,
+  }));
+};
+```
+
+### Pexels API
+
+```javascript
+const searchPexels = async (query: string, style: ImageStyle) => {
+  const modifiedQuery = applyStyleModifier(query, style);
+  const response = await fetch(
+    `https://api.pexels.com/v1/search?query=${encodeURIComponent(modifiedQuery)}&per_page=10`,
+    { headers: { Authorization: PEXELS_API_KEY } }
+  );
+  const data = await response.json();
+  return data.photos.map(photo => ({
+    url: photo.src.large,
+    thumbnailUrl: photo.src.tiny,
+    source: 'pexels',
+    attribution: `Photo by ${photo.photographer} on Pexels`,
+    width: photo.width,
+    height: photo.height,
+  }));
+};
+```
+
+### Style Modifier Function
+
+```javascript
+const applyStyleModifier = (query: string, style: ImageStyle): string => {
+  const modifiers: Record<ImageStyle, string> = {
+    photography: '',
+    illustration: ' illustration OR vector',
+    vintage: ' vintage OR retro',
+    minimalist: ' minimal OR simple OR icon',
+    any: '',
+  };
+  return query + modifiers[style];
+};
+```
+
+### Fallback Chain Implementation
+
+```javascript
+const findImageForQuestion = async (question: Question, style: ImageStyle): Promise<QuestionImage> => {
+  // Tier 1: Specific subject
+  const subject = await extractVisualSubject(question);
+  let images = await searchAllApis(subject, style);
+  
+  if (images.length >= 3) {
+    return { questionId: question.id, selectedImage: images[0], alternatives: images.slice(1, 6), fallbackTier: 1, isTextOnly: false };
+  }
+  
+  // Tier 2: Category subject
+  const categorySubject = await extractCategorySubject(question);
+  images = await searchAllApis(categorySubject, style);
+  
+  if (images.length >= 3) {
+    return { questionId: question.id, selectedImage: images[0], alternatives: images.slice(1, 6), fallbackTier: 2, isTextOnly: false };
+  }
+  
+  // Tier 3: Abstract/thematic
+  const thematicSubject = getThematicFallback(question);
+  images = await searchAllApis(thematicSubject, style);
+  
+  if (images.length >= 1) {
+    return { questionId: question.id, selectedImage: images[0], alternatives: images.slice(1, 6), fallbackTier: 3, isTextOnly: false };
+  }
+  
+  // Tier 4: Text-only
+  return { questionId: question.id, selectedImage: null, alternatives: [], fallbackTier: 4, isTextOnly: true };
+};
+```
+
+## 3.7 Verification Implementation
+
+### Web Search Verification
+
+```javascript
+const verifyQuestion = async (question: Question): Promise<VerificationResult> => {
+  // Construct search query
+  const searchQuery = `${question.answer} ${extractKeyTerms(question.question)}`;
+  
+  // Execute web search (using Claude's tool use or Tavily)
+  const searchResults = await webSearch(searchQuery);
+  
+  // Analyze results with LLM
+  const analysis = await analyzeVerification(question, searchResults);
+  
+  return {
+    questionId: question.id,
+    status: analysis.status, // 'verified' | 'corrected' | 'unverifiable'
+    originalAnswer: question.answer,
+    correctedAnswer: analysis.correctedAnswer,
+    sources: analysis.sources,
+    confidence: analysis.confidence,
+  };
+};
+
+const analyzeVerification = async (question: Question, searchResults: SearchResult[]) => {
+  const prompt = `
+    Question: ${question.question}
+    Provided Answer: ${question.answer}
+    
+    Search Results:
+    ${searchResults.map(r => `Source: ${r.title}\nSnippet: ${r.snippet}`).join('\n\n')}
+    
+    Determine:
+    1. Is the provided answer correct according to these sources?
+    2. If not, what is the correct answer?
+    3. How confident are you? (high/medium/low)
+    
+    Output JSON:
+    {
+      "status": "verified|corrected|unverifiable",
+      "correctedAnswer": "only if corrected",
+      "confidence": "high|medium|low",
+      "reasoning": "brief explanation",
+      "sources": [{"url": "...", "title": "...", "snippet": "relevant excerpt"}]
+    }
+  `;
+  
+  return await callClaude(prompt);
+};
+```
+
+### Re-scoring After Correction
+
+```javascript
+const rescoreDifficulty = async (question: Question, newAnswer: string): Promise<Question> => {
+  const updatedQuestion = { ...question, answer: newAnswer };
+  
+  const prompt = `
+    Re-evaluate difficulty for this corrected question:
+    Question: ${updatedQuestion.question}
+    New Answer: ${newAnswer}
+    Original Answer: ${question.answer}
+    
+    Score on 1-5 for each dimension...
+  `;
+  
+  const newScores = await callClaude(prompt);
+  
+  const difficultyShifted = newScores.difficultyBand !== question.difficultyBand;
+  
+  return {
+    ...updatedQuestion,
+    difficultyScores: newScores.difficultyScores,
+    overallDifficulty: newScores.overallDifficulty,
+    difficultyBand: newScores.difficultyBand,
+    verification: {
+      ...updatedQuestion.verification,
+      difficultyShifted,
+    },
+  };
+};
+```
+
+---
+
+# PART 4: COMPONENT BREAKDOWN
+
+## 4.1 Component Tree
+
+```
+App
+├── SetupPhase
+│   ├── AudiencePresetSelector
+│   ├── AudienceTagCloud
+│   ├── ToneSelector
+│   ├── QuizStructureInputs
+│   │   ├── RoundCountInput
+│   │   └── QuestionsPerRoundInput
+│   ├── DifficultyDistributionSelector
+│   │   ├── PresetButtons
+│   │   └── CustomSliders
+│   ├── AnswerRevealSelector
+│   ├── ContextNotesTextarea
+│   └── StartButton
+│
+├── SectionsPhase
+│   ├── QuizSummaryBar
+│   ├── SectionGrid
+│   │   └── SectionCard (×30+)
+│   │       ├── DifficultyBadge
+│   │       ├── CategoryTag
+│   │       └── SelectionIndicator
+│   ├── SectionFooter
+│   │   ├── SelectionCounter
+│   │   ├── SurpriseMeButton
+│   │   ├── GenerateMoreButton
+│   │   │   └── FeedbackInput (collapsible)
+│   │   └── ContinueButton
+│   └── DifficultyWarningAlert
+│
+├── QuestionsPhase
+│   ├── RoundHeader
+│   │   ├── RoundIndicator
+│   │   ├── SectionDescription
+│   │   └── InspirationTags
+│   ├── SplitPanel
+│   │   ├── CandidatesPanel
+│   │   │   ├── QuestionCard (×15+)
+│   │   │   │   ├── QuestionText
+│   │   │   │   ├── AnswerText
+│   │   │   │   ├── DifficultyBadge
+│   │   │   │   ├── DuplicateBadge (conditional)
+│   │   │   │   └── AcceptRejectButtons
+│   │   │   └── GenerateMoreButton
+│   │   │       └── FeedbackInput
+│   │   │       └── GapSuggestion
+│   │   └── AcceptedPanel
+│   │       ├── DifficultyDistributionBar
+│   │       ├── GapAnalysisText
+│   │       └── AcceptedQuestionList
+│   │           └── AcceptedQuestionRow
+│   │               ├── QuestionSummary
+│   │               ├── DifficultyBadge
+│   │               ├── StealButton
+│   │               └── RemoveButton
+│   ├── RoundNavigation
+│   │   ├── PreviousRoundButton
+│   │   └── NextRoundButton
+│   └── RoundProgress
+│
+├── VerificationPhase
+│   ├── VerificationProgress
+│   │   ├── ProgressBar
+│   │   └── StatusText
+│   ├── ResultsAccordion
+│   │   ├── VerifiedSection
+│   │   │   └── VerifiedQuestionRow
+│   │   ├── CorrectedSection
+│   │   │   └── CorrectedQuestionCard
+│   │   │       ├── OriginalAnswer
+│   │   │       ├── CorrectedAnswer
+│   │   │       ├── DifficultyShiftWarning
+│   │   │       ├── SourceSnippet
+│   │   │       └── ActionButtons
+│   │   └── UnverifiableSection
+│   │       └── UnverifiableQuestionCard
+│   │           ├── SearchAttemptsInfo
+│   │           └── ActionButtons
+│   └── ContinueButton
+│
+├── ImagesPhase
+│   ├── ImageStyleSelector
+│   ├── BatchActionBar
+│   ├── ImageGrid
+│   │   └── QuestionImageCard
+│   │       ├── QuestionSummary
+│   │       ├── SelectedImageThumbnail
+│   │       ├── FallbackTierBadge
+│   │       └── ActionButtons
+│   ├── ImageSelectionModal
+│   │   ├── CurrentImage
+│   │   ├── AlternativesRow
+│   │   ├── CustomSearchInput
+│   │   ├── SearchResults
+│   │   └── UploadButton
+│   └── ContinueButton
+│
+├── PreviewPhase
+│   ├── PreviewHeader
+│   │   ├── RuntimeCalculator
+│   │   ├── HostNotesToggle
+│   │   └── ThemeButton
+│   ├── QuizOverviewSection
+│   │   ├── TitleEditor
+│   │   └── StatsDisplay
+│   ├── RoundsAccordion
+│   │   └── RoundSection
+│   │       └── QuestionPreviewRow
+│   │           ├── QuestionText (editable)
+│   │           ├── AnswerText (editable)
+│   │           ├── DifficultyBadge
+│   │           ├── ImageThumbnail
+│   │           ├── HostNotesPreview
+│   │           └── EditActions
+│   ├── ThemeCustomizerPanel
+│   │   ├── ColorSchemeSelector
+│   │   ├── FontStyleSelector
+│   │   ├── LogoUploader
+│   │   └── BackgroundSelector
+│   └── ExportButton
+│
+└── SharedComponents
+    ├── DifficultyBadge
+    ├── DifficultyDistributionBar
+    ├── LoadingSpinner
+    ├── ProgressBar
+    ├── Modal
+    ├── Accordion
+    ├── TagCloud
+    ├── Toast notifications
+    └── ConfirmDialog
+```
+
+## 4.2 Key Component Specifications
+
+### DifficultyDistributionBar
+
+```typescript
+interface DifficultyDistributionBarProps {
+  current: DifficultyDistribution;
+  target: DifficultyDistribution;
+  showLabels?: boolean;
+  compact?: boolean;
+}
+
+// Renders stacked horizontal bar with three segments
+// Each segment shows current/target (e.g., "3/4")
+// Color coded: green (easy), amber (medium), red (hard)
+// Target shown as marker line or ghost segment
+```
+
+### QuestionCard (Candidates)
+
+```typescript
+interface QuestionCardProps {
+  question: Question;
+  onAccept: (id: string) => void;
+  onReject: (id: string) => void;
+  duplicateOf?: Question;
+  onAcknowledgeDuplicate?: (id: string) => void;
+}
+
+// Displays question, answer, difficulty
+// Shows duplicate warning badge if applicable
+// Accept/Reject buttons with hover states
+// Animate out on action
+```
+
+### SectionCard
+
+```typescript
+interface SectionCardProps {
+  section: Section;
+  isSelected: boolean;
+  isSelectable: boolean; // false if max selections reached
+  onToggle: (id: string) => void;
+}
+
+// Displays name, description, difficulty estimate, category
+// Click to toggle selection
+// Visual states: default, hover, selected, disabled
+```
+
+---
+
+# PART 5: CONTEXT DUMP FOR DEVELOPMENT AGENT
+
+## 5.1 Project Summary
+
+You are building an **Agentic Quiz Generator** — a web application that helps quiz hosts create professional, balanced trivia quizzes with AI assistance. The tool guides users through a multi-phase workflow:
+
+1. **Setup:** Configure audience, tone, structure, difficulty targets
+2. **Sections:** AI generates round themes, user selects and orders them
+3. **Questions:** AI generates Q&A pairs per round, user curates with difficulty balancing
+4. **Verification:** All answers fact-checked via web search, corrections surfaced
+5. **Images:** Royalty-free images selected for each question
+6. **Preview/Export:** Final review, customization, and PowerPoint download
+
+## 5.2 Core Technical Decisions
+
+- **Frontend:** React + TypeScript + Tailwind + shadcn/ui
+- **Backend:** Node.js (Express or Fastify) or Python (FastAPI)
+- **LLM:** Anthropic Claude API with structured JSON outputs
+- **PPTX:** PptxGenJS (Node) or python-pptx (Python)
+- **Images:** Unsplash, Pexels, Pixabay APIs
+- **State:** Zustand or React Context (client-side, session-based)
+
+## 5.3 Key Features to Implement
+
+| Feature | Phase | Priority |
+|---------|-------|----------|
+| Audience attribute tag cloud | Setup | High |
+| Quiz tone selector | Setup | High |
+| Difficulty distribution with 4-dimension scoring | Setup/Questions | High |
+| Section generation with estimated difficulty | Sections | High |
+| "Surprise me" auto-select | Sections | Medium |
+| Question generation with difficulty banding | Questions | High |
+| Duplicate detection across rounds | Questions | High |
+| Live difficulty distribution tracker | Questions | High |
+| "Steal this question" cross-round move | Questions | Medium |
+| Generate more with gap awareness | Questions | High |
+| Web search verification | Verification | High |
+| Difficulty re-scoring after corrections | Verification | Medium |
+| Image search with style preference | Images | High |
+| Tiered fallback for images | Images | Medium |
+| Estimated runtime calculator | Preview | Medium |
+| Host notes toggle and generation | Preview | Medium |
+| Theme/branding customization | Preview | Medium |
+| PPTX export with two-slide Q&A structure | Export | High |
+
+## 5.4 Critical Implementation Notes
+
+### Duplicate Detection
+LLMs don't have cross-call memory. You MUST explicitly track all accepted questions and pass them to the duplicate detection system. Use either:
+- Embedding similarity (faster, requires embedding API)
+- LLM comparison (more accurate, slower, use for flagged cases)
+
+### Difficulty Scoring
+Every question must be scored on four dimensions (1-5 each):
+1. Knowledge Accessibility
+2. Cognitive Load  
+3. Cultural/Linguistic Accessibility
+4. Temporal Relevance
+
+Overall = average. Bands: 1.0-2.0 Easy, 2.1-3.2 Medium, 3.3-5.0 Hard.
+
+Calibration shifts based on audience preset (e.g., "competitive league" has higher baseline).
+
+### "Generate More" Context
+Every regeneration call must include:
+- Previously rejected question themes
+- Current difficulty distribution gaps
+- User feedback text (if provided)
+- Existing accepted questions (for duplicate avoidance)
+
+### PPTX Structure
+Use two-slide approach (not animations):
+- Question slide: Question + Image (no answer)
+- Answer slide: Question + Image + Answer
+
+This is more reliable across PowerPoint versions.
+
+### Image Fallback Chain
+1. Specific subject search
+2. Category-level search
+3. Abstract/thematic search
+4. Text-only slide (no image)
+
+Track which tier was used and display to user.
+
+### Verification Confidence
+Be conservative. If sources conflict or are low-quality, mark as "unverifiable" rather than making a wrong correction. User confirmation is the safety net.
+
+## 5.5 File Structure Suggestion
+
+```
+/quiz-generator
+├── /frontend
+│   ├── /src
+│   │   ├── /components
+│   │   │   ├── /setup
+│   │   │   ├── /sections
+│   │   │   ├── /questions
+│   │   │   ├── /verification
+│   │   │   ├── /images
+│   │   │   ├── /preview
+│   │   │   └── /shared
+│   │   ├── /hooks
+│   │   ├── /store (Zustand)
+│   │   ├── /api (API client)
+│   │   ├── /types
+│   │   ├── /utils
+│   │   └── App.tsx
+│   └── package.json
+├── /backend
+│   ├── /src
+│   │   ├── /routes
+│   │   ├── /services
+│   │   │   ├── llm.service.ts
+│   │   │   ├── verification.service.ts
+│   │   │   ├── images.service.ts
+│   │   │   └── pptx.service.ts
+│   │   ├── /prompts
+│   │   ├── /types
+│   │   └── index.ts
+│   └── package.json
+└── README.md
+```
+
+## 5.6 Environment Variables Required
+
+```
+# Anthropic
+ANTHROPIC_API_KEY=
+
+# Image APIs
+UNSPLASH_ACCESS_KEY=
+PEXELS_API_KEY=
+PIXABAY_API_KEY=
+
+# Optional: Web search
+TAVILY_API_KEY=
+
+# Server
+PORT=3001
+NODE_ENV=development
+```
+
+## 5.7 Development Phases Recommendation
+
+**Phase 1: Core Flow (MVP)**
+- Setup screen with all inputs
+- Section generation and selection
+- Question generation and curation
+- Basic PPTX export (no images, no verification)
+
+**Phase 2: Intelligence Layer**
+- Difficulty scoring and distribution tracking
+- Duplicate detection
+- "Generate more" with context awareness
+- "Surprise me" and "Steal this question"
+
+**Phase 3: Quality Assurance**
+- Web search verification
+- Difficulty re-scoring after corrections
+- Image search and selection
+- Fallback chain implementation
+
+**Phase 4: Polish**
+- Host notes generation
+- Theme customization
+- Runtime calculator
+- UI/UX refinement
+
+## 5.8 Testing Priorities
+
+1. **State persistence** — Ensure state survives navigation between phases
+2. **Difficulty calculation** — Verify scoring and banding logic
+3. **Duplicate detection** — Test across rounds, with similar but not identical questions
+4. **PPTX generation** — Test with various question counts, image states, themes
+5. **API error handling** — Graceful degradation when LLM or image APIs fail
+6. **Edge cases** — Zero images found, all questions rejected, verification conflicts
+
+---
+
+# END OF SPECIFICATION
+
+This document contains everything needed to build the Agentic Quiz Generator. The development agent should:
+
+1. Read this specification completely before starting
+2. Set up the project structure as suggested
+3. Implement in phases as recommended
+4. Refer back to specific sections for detailed requirements
+5. Ask clarifying questions only for genuinely ambiguous requirements
+
+All features, interactions, data structures, API designs, and implementation details are specified above. Build it.
