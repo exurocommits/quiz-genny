@@ -1,32 +1,59 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuizStore } from '@/stores/quizStore';
-import { generateMockQuestions, MOCK_SECTIONS } from '@/utils/mockData';
-import type { Question } from '@quiz-genny/shared';
+import type {
+  Question,
+  GenerateQuestionsRequest,
+  GenerateQuestionsResponse,
+  DifficultyDistribution,
+  DuplicateCheckRequest,
+  DuplicateCheckResponse,
+} from '@quiz-genny/shared';
 import { QuestionCard } from './QuestionCard';
 import { AcceptedQuestionsList } from './AcceptedQuestionsList';
 import { DifficultyDistributionBar } from '../shared/DifficultyDistributionBar';
 import { RoundNavigation } from './RoundNavigation';
+import { DuplicateWarningModal } from './DuplicateWarningModal';
 
 export function QuestionsPage() {
   const navigate = useNavigate();
   const { roundIndex } = useParams<{ roundIndex: string }>();
   const currentRoundIndex = parseInt(roundIndex || '0');
 
-  const { config, rounds, setPhase } = useQuizStore();
+  const { config, rounds, sections, setPhase } = useQuizStore();
   const currentRound = rounds[currentRoundIndex];
-  const section = MOCK_SECTIONS.find((s) => s.id === currentRound?.sectionId);
+  const section = sections.generated.find((s) => s.id === currentRound?.sectionId);
 
   const [candidates, setCandidates] = useState<Question[]>([]);
   const [accepted, setAccepted] = useState<Question[]>(currentRound?.questions.accepted || []);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState<string>('');
+  const [rejectedThemes, setRejectedThemes] = useState<string[]>([]);
 
-  // Load candidates on mount
+  // Duplicate detection modal state
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [pendingQuestion, setPendingQuestion] = useState<Question | null>(null);
+  const [duplicateInfo, setDuplicateInfo] = useState<{
+    questionId: string;
+    existingQuestion: Question;
+    similarity: number;
+  } | null>(null);
+
+  // Reset state when round changes
   useEffect(() => {
-    if (currentRound && candidates.length === 0) {
-      const mockQuestions = generateMockQuestions(currentRound.sectionId, 15);
-      setCandidates(mockQuestions);
+    setCandidates([]);
+    setAccepted(currentRound?.questions.accepted || []);
+    setRejectedThemes([]);
+    setIsGenerating(false);
+  }, [currentRoundIndex, currentRound]);
+
+  // Auto-generate questions on mount if no candidates
+  useEffect(() => {
+    if (currentRound && section && candidates.length === 0 && !isGenerating) {
+      generateQuestions(true);
     }
-  }, [currentRound, candidates.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentRound, section]);
 
   // Save to store when accepted changes
   useEffect(() => {
@@ -46,14 +73,143 @@ export function QuestionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accepted]);
 
-  const handleAccept = (question: Question) => {
-    if (accepted.length < config.questionsPerRound) {
-      setAccepted([...accepted, question]);
-      setCandidates(candidates.filter((q) => q.id !== question.id));
+  const generateQuestions = async (isInitial: boolean = false) => {
+    if (!section) return;
+
+    setIsGenerating(true);
+    setGenerationProgress(
+      isInitial ? `Generating questions for ${section.name}...` : 'Generating more questions...'
+    );
+
+    try {
+      // Calculate difficulty gaps
+      const currentDistribution = calculateCurrentDistribution(accepted);
+      const difficultyGaps: DifficultyDistribution = {
+        easy: config.difficultyTarget.easy - currentDistribution.easy,
+        medium: config.difficultyTarget.medium - currentDistribution.medium,
+        hard: config.difficultyTarget.hard - currentDistribution.hard,
+      };
+
+      const requestBody: GenerateQuestionsRequest = {
+        section,
+        config,
+        rejectedThemes,
+        difficultyGaps,
+        count: isInitial ? 15 : 10,
+      };
+
+      const response = await fetch('http://localhost:3001/api/generate/questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate questions: ${response.statusText}`);
+      }
+
+      const data: GenerateQuestionsResponse = await response.json();
+
+      if (isInitial) {
+        setCandidates(data.questions);
+      } else {
+        setCandidates([...candidates, ...data.questions]);
+      }
+    } catch (error) {
+      console.error('Error generating questions:', error);
+      alert('Failed to generate questions. Please try again.');
+    } finally {
+      setIsGenerating(false);
+      setGenerationProgress('');
     }
   };
 
+  const handleAccept = async (question: Question) => {
+    if (accepted.length >= config.questionsPerRound) {
+      return;
+    }
+
+    // Check for duplicates before accepting
+    try {
+      const requestBody: DuplicateCheckRequest = {
+        newQuestions: [question],
+        existingQuestions: accepted,
+      };
+
+      const response = await fetch('http://localhost:3001/api/verify/duplicate-check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Duplicate check failed: ${response.statusText}`);
+      }
+
+      const data: DuplicateCheckResponse = await response.json();
+
+      // If duplicates found, show modal
+      if (data.duplicates && data.duplicates.length > 0) {
+        const duplicate = data.duplicates[0];
+        const existingQuestion = accepted.find((q) => q.id === duplicate.existingId);
+
+        if (existingQuestion) {
+          setPendingQuestion(question);
+          setDuplicateInfo({
+            questionId: duplicate.newId,
+            existingQuestion,
+            similarity: duplicate.similarity,
+          });
+          setShowDuplicateModal(true);
+          return; // Don't accept yet, wait for user decision
+        }
+      }
+
+      // No duplicates found, accept normally
+      acceptQuestion(question);
+    } catch (error) {
+      console.error('Error checking for duplicates:', error);
+      // On error, accept anyway (don't block the user)
+      acceptQuestion(question);
+    }
+  };
+
+  const acceptQuestion = (question: Question) => {
+    setAccepted([...accepted, question]);
+    setCandidates(candidates.filter((q) => q.id !== question.id));
+  };
+
+  const handleAcceptAnyway = () => {
+    if (pendingQuestion) {
+      // Mark as duplicate acknowledged and accept
+      const questionWithDuplicateFlag = {
+        ...pendingQuestion,
+        duplicateOf: duplicateInfo?.existingQuestion.id,
+        duplicateAcknowledged: true,
+      };
+      acceptQuestion(questionWithDuplicateFlag);
+    }
+
+    // Close modal and reset state
+    setShowDuplicateModal(false);
+    setPendingQuestion(null);
+    setDuplicateInfo(null);
+  };
+
+  const handleCancelDuplicate = () => {
+    // Just close modal, don't accept the question
+    setShowDuplicateModal(false);
+    setPendingQuestion(null);
+    setDuplicateInfo(null);
+  };
+
   const handleReject = (question: Question) => {
+    // Track rejected question theme
+    setRejectedThemes([...rejectedThemes, question.question]);
     setCandidates(candidates.filter((q) => q.id !== question.id));
   };
 
@@ -125,27 +281,52 @@ export function QuestionsPage() {
           {/* Candidates Panel (60%) */}
           <div className="lg:col-span-3 space-y-4">
             <div className="bg-white rounded-xl shadow-lg p-4">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Question Candidates ({candidates.length} available)
-              </h2>
-              <div className="space-y-3 max-h-[70vh] overflow-y-auto">
-                {candidates.map((question) => (
-                  <QuestionCard
-                    key={question.id}
-                    question={question}
-                    onAccept={handleAccept}
-                    onReject={handleReject}
-                  />
-                ))}
-                {candidates.length === 0 && (
-                  <div className="text-center py-12 text-gray-500">
-                    <p>No more candidates available.</p>
-                    <button className="mt-4 px-6 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
-                      Generate More (Coming in Phase 2)
-                    </button>
-                  </div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Question Candidates ({candidates.length} available)
+                </h2>
+                {!isGenerating && candidates.length > 0 && (
+                  <button
+                    onClick={() => generateQuestions(false)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Generate More
+                  </button>
                 )}
               </div>
+
+              {/* Loading State */}
+              {isGenerating && (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                  <p className="text-gray-600 font-medium">{generationProgress}</p>
+                </div>
+              )}
+
+              {/* Question List */}
+              {!isGenerating && (
+                <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+                  {candidates.map((question) => (
+                    <QuestionCard
+                      key={question.id}
+                      question={question}
+                      onAccept={handleAccept}
+                      onReject={handleReject}
+                    />
+                  ))}
+                  {candidates.length === 0 && (
+                    <div className="text-center py-12 text-gray-500">
+                      <p>No more candidates available.</p>
+                      <button
+                        onClick={() => generateQuestions(false)}
+                        className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Generate More
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -160,6 +341,15 @@ export function QuestionsPage() {
             />
           </div>
         </div>
+
+        {/* Duplicate Warning Modal */}
+        <DuplicateWarningModal
+          isOpen={showDuplicateModal}
+          onClose={handleCancelDuplicate}
+          duplicateInfo={duplicateInfo}
+          newQuestion={pendingQuestion}
+          onAcceptAnyway={handleAcceptAnyway}
+        />
       </div>
     </div>
   );

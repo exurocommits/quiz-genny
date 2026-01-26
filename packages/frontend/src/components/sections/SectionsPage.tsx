@@ -1,17 +1,69 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuizStore } from '@/stores/quizStore';
-import { MOCK_SECTIONS } from '@/utils/mockData';
 import { SectionCard } from './SectionCard';
-import type { Round } from '@quiz-genny/shared';
+import type { Round, GenerateSectionsRequest, GenerateSectionsResponse } from '@quiz-genny/shared';
 
 export function SectionsPage() {
   const navigate = useNavigate();
   const { config, sections, setPhase } = useQuizStore();
   const [selectedIds, setSelectedIds] = useState<string[]>(sections.selected);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const requiredCount = config.roundCount;
   const isComplete = selectedIds.length === requiredCount;
+
+  // Auto-generate sections on mount if none exist
+  useEffect(() => {
+    if (sections.generated.length === 0 && !isGenerating) {
+      generateSections();
+    }
+  }, []); // Only run on mount
+
+  const generateSections = async (userFeedback?: string) => {
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const existingThemes = sections.generated.map((s) => s.name);
+
+      const requestBody: GenerateSectionsRequest = {
+        config,
+        existingThemes,
+        userFeedback,
+      };
+
+      const response = await fetch('http://localhost:3001/api/generate/sections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate sections: ${response.statusText}`);
+      }
+
+      const data: GenerateSectionsResponse = await response.json();
+
+      // Update Zustand store with new sections
+      useQuizStore.setState({
+        sections: {
+          generated: [...sections.generated, ...data.sections],
+          selected: sections.selected,
+          generationCount: sections.generationCount + 1,
+        },
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate sections';
+      setError(errorMessage);
+      console.error('Section generation error:', err);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const toggleSection = (id: string) => {
     if (selectedIds.includes(id)) {
@@ -25,7 +77,7 @@ export function SectionsPage() {
 
   const handleSurpriseMe = () => {
     // Simple algorithm: pick random balanced selection
-    const shuffled = [...MOCK_SECTIONS].sort(() => Math.random() - 0.5);
+    const shuffled = [...sections.generated].sort(() => Math.random() - 0.5);
     const selected = shuffled.slice(0, requiredCount).map((s) => s.id);
     setSelectedIds(selected);
   };
@@ -57,6 +109,21 @@ export function SectionsPage() {
     navigate('/questions/0');
   };
 
+  // Show loading screen during initial generation
+  if (isGenerating && sections.generated.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl p-12 text-center max-w-md">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-6"></div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Generating quiz sections...</h2>
+          <p className="text-gray-600">
+            Creating {config.roundCount} unique rounds tailored to your preferences
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 py-12 px-4">
       <div className="max-w-7xl mx-auto">
@@ -69,11 +136,27 @@ export function SectionsPage() {
             easy, {config.difficultyTarget.medium} medium, {config.difficultyTarget.hard} hard |{' '}
             {config.tone.replace('_', ' ')} tone
           </p>
+          <p className="text-sm text-purple-600 mt-2">
+            Generated {sections.generated.length} sections ({sections.generationCount} batches)
+          </p>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-8">
+            <p className="text-red-800 font-semibold">Error: {error}</p>
+            <button
+              onClick={() => generateSections()}
+              className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors duration-200"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Section Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          {MOCK_SECTIONS.map((section) => (
+          {sections.generated.map((section) => (
             <SectionCard
               key={section.id}
               section={section}
@@ -82,6 +165,27 @@ export function SectionsPage() {
               onClick={() => toggleSection(section.id)}
             />
           ))}
+        </div>
+
+        {/* Generate More Button */}
+        <div className="mb-8">
+          <button
+            onClick={() => generateSections()}
+            disabled={isGenerating}
+            className={`
+              w-full px-6 py-4 font-semibold rounded-lg transition-colors duration-200 flex items-center justify-center gap-2
+              ${
+                isGenerating
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+              }
+            `}
+          >
+            {isGenerating && (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            )}
+            {isGenerating ? 'Generating More Sections...' : '+ Generate More Sections'}
+          </button>
         </div>
 
         {/* Footer Actions */}

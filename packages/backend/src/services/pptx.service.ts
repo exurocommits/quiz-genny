@@ -11,25 +11,106 @@ export class PptxService {
     // Title Slide
     this.addTitleSlide(pptx, state.presentation.title);
 
-    // For each round
-    for (let i = 0; i < state.rounds.length; i++) {
-      const round = state.rounds[i];
-      const sectionName = `Round ${i + 1}`;
+    const revealFrequency = state.config.answerRevealFrequency;
 
-      // Round intro slide
-      this.addRoundIntroSlide(pptx, i + 1, sectionName);
+    if (revealFrequency === 'after_each_round') {
+      // Show questions then answers for each round
+      for (let i = 0; i < state.rounds.length; i++) {
+        const round = state.rounds[i];
+        const sectionName = `Round ${i + 1}`;
 
-      // Question slides
-      const questions = round.questions.accepted;
-      for (let q = 0; q < questions.length; q++) {
-        const question = questions[q];
+        // Round intro slide
+        this.addRoundIntroSlide(pptx, i + 1, sectionName);
 
-        // Question slide
-        this.addQuestionSlide(pptx, q + 1, question.question);
+        // All question slides for this round
+        const questions = round.questions.accepted;
+        for (let q = 0; q < questions.length; q++) {
+          this.addQuestionSlide(pptx, q + 1, questions[q].question);
+        }
 
-        // Answer slide (based on reveal frequency)
-        // For Phase 1, always add answers after questions
-        this.addAnswerSlide(pptx, q + 1, question.question, question.answer);
+        // Answers intro slide
+        this.addAnswersIntroSlide(pptx, i + 1);
+
+        // All answer slides for this round
+        for (let q = 0; q < questions.length; q++) {
+          this.addAnswerSlide(pptx, q + 1, questions[q].question, questions[q].answer);
+        }
+      }
+    } else if (revealFrequency === 'after_two_rounds') {
+      // Show questions for 2 rounds, then answers for those 2 rounds
+      for (let i = 0; i < state.rounds.length; i += 2) {
+        // Questions for round i and i+1
+        for (let r = i; r < Math.min(i + 2, state.rounds.length); r++) {
+          const round = state.rounds[r];
+          this.addRoundIntroSlide(pptx, r + 1, `Round ${r + 1}`);
+
+          const questions = round.questions.accepted;
+          for (let q = 0; q < questions.length; q++) {
+            this.addQuestionSlide(pptx, q + 1, questions[q].question);
+          }
+        }
+
+        // Answers for round i and i+1
+        this.addAnswersIntroSlide(pptx, i + 1, Math.min(i + 2, state.rounds.length));
+
+        for (let r = i; r < Math.min(i + 2, state.rounds.length); r++) {
+          const round = state.rounds[r];
+          const questions = round.questions.accepted;
+
+          // Add round label for answers
+          const slide = pptx.addSlide();
+          slide.addText(`Round ${r + 1} - Answers`, {
+            x: 0.5,
+            y: 2.5,
+            w: 9,
+            h: 1,
+            fontSize: 36,
+            bold: true,
+            color: '70AD47',
+            align: 'center',
+          });
+
+          for (let q = 0; q < questions.length; q++) {
+            this.addAnswerSlide(pptx, q + 1, questions[q].question, questions[q].answer);
+          }
+        }
+      }
+    } else {
+      // 'at_end' - All questions first, then all answers
+      // All question rounds
+      for (let i = 0; i < state.rounds.length; i++) {
+        const round = state.rounds[i];
+        this.addRoundIntroSlide(pptx, i + 1, `Round ${i + 1}`);
+
+        const questions = round.questions.accepted;
+        for (let q = 0; q < questions.length; q++) {
+          this.addQuestionSlide(pptx, q + 1, questions[q].question);
+        }
+      }
+
+      // All answer rounds
+      this.addAnswersIntroSlide(pptx);
+
+      for (let i = 0; i < state.rounds.length; i++) {
+        const round = state.rounds[i];
+        const questions = round.questions.accepted;
+
+        // Add round label for answers
+        const slide = pptx.addSlide();
+        slide.addText(`Round ${i + 1} - Answers`, {
+          x: 0.5,
+          y: 2.5,
+          w: 9,
+          h: 1,
+          fontSize: 36,
+          bold: true,
+          color: '70AD47',
+          align: 'center',
+        });
+
+        for (let q = 0; q < questions.length; q++) {
+          this.addAnswerSlide(pptx, q + 1, questions[q].question, questions[q].answer);
+        }
       }
     }
 
@@ -86,6 +167,32 @@ export class PptxService {
       w: 8,
       h: 0.8,
       fontSize: 32,
+      color: 'FFFFFF',
+      align: 'center',
+    });
+  }
+
+  private addAnswersIntroSlide(pptx: PptxGenJS, fromRound?: number, toRound?: number) {
+    const slide = pptx.addSlide();
+    slide.background = { color: '70AD47' };
+
+    let titleText = 'Answers';
+    if (fromRound && toRound) {
+      titleText =
+        fromRound === toRound
+          ? `Round ${fromRound} - Answers`
+          : `Rounds ${fromRound}-${toRound} - Answers`;
+    } else if (fromRound) {
+      titleText = `Round ${fromRound} - Answers`;
+    }
+
+    slide.addText(titleText, {
+      x: 1,
+      y: 2.5,
+      w: 8,
+      h: 1.5,
+      fontSize: 44,
+      bold: true,
       color: 'FFFFFF',
       align: 'center',
     });
