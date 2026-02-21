@@ -5,6 +5,9 @@ import { generateRouter } from './routes/generate';
 import { verifyRouter } from './routes/verify';
 import { imagesRouter } from './routes/images';
 import { exportRouter } from './routes/export';
+import { authRouter } from './routes/auth';
+import { userRouter } from './routes/user';
+import { stripeRouter } from './routes/stripe';
 
 // Load environment variables
 dotenv.config();
@@ -51,6 +54,9 @@ app.use('/api/generate', generateRouter);
 app.use('/api/verify', verifyRouter);
 app.use('/api/images', imagesRouter);
 app.use('/api/export', exportRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/user', userRouter);
+app.use('/api/stripe', stripeRouter);
 
 // 404 handler
 app.use((req, res) => {
