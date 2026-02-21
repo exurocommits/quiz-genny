@@ -4,6 +4,9 @@ import { SetupPage } from './components/setup/SetupPage';
 import { SectionsPage } from './components/sections/SectionsPage';
 import { QuestionsPage } from './components/questions/QuestionsPage';
 import { PreviewPage } from './components/preview/PreviewPage';
+import { LandingPage } from './components/landing/LandingPage';
+import { TermsOfService } from './components/legal/TermsOfService';
+import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -20,11 +23,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/setup" replace />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/setup" element={<SetupPage />} />
           <Route path="/sections" element={<SectionsPage />} />
           <Route path="/questions/:roundIndex" element={<QuestionsPage />} />
           <Route path="/preview" element={<PreviewPage />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
