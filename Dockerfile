@@ -39,11 +39,11 @@ COPY --from=builder /app/packages/backend/dist ./packages/backend/dist
 COPY --from=builder /app/packages/frontend/dist ./packages/frontend/dist
 
 # Expose port
-EXPOSE 3001
+EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/health', (r) => {if (r.statusCode !== 200) throw new Error('Health check failed')})"
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries 3 \
+  CMD node -e "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error('Health check failed')})"
 
 # Start server
 CMD ["node", "packages/backend/dist/index.js"]
