@@ -5,6 +5,7 @@ import { SectionsPage } from './components/sections/SectionsPage';
 import { QuestionsPage } from './components/questions/QuestionsPage';
 import { PreviewPage } from './components/preview/PreviewPage';
 import { LandingPage } from './components/landing/LandingPage';
+import { PricingPage } from './components/pricing/PricingPage';
 import { TermsOfService } from './components/legal/TermsOfService';
 import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
 
@@ -24,6 +25,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
           <Route path="/setup" element={<SetupPage />} />
           <Route path="/sections" element={<SectionsPage />} />
           <Route path="/questions/:roundIndex" element={<QuestionsPage />} />
