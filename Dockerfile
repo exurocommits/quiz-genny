@@ -12,7 +12,7 @@ COPY turbo.json ./
 RUN npm install -g pnpm
 
 # Install all dependencies (includes workspaces)
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Copy all packages source code
 COPY packages/ ./packages/
@@ -21,7 +21,7 @@ COPY packages/ ./packages/
 RUN pnpm run build
 
 # Install only production dependencies
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod
 
 # Expose port
 EXPOSE 3000
