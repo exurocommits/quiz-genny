@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import './lib/db'; // Initialize SQLite
 import { generateRouter } from './routes/generate';
 import { verifyRouter } from './routes/verify';
 import { imagesRouter } from './routes/images';
@@ -13,6 +14,7 @@ import { stripeRouter } from './routes/stripe';
 dotenv.config();
 
 const app = express();
+console.log('📦 SQLite database initialized');
 const PORT = process.env.PORT || 3000;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
