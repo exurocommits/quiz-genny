@@ -14,8 +14,7 @@ COPY turbo.json ./
 RUN npm install -g pnpm@9
 
 # Install all dependencies including devDeps (turbo is a devDep)
-# Generate fresh lockfile in Docker to avoid version mismatches
-RUN rm -f pnpm-lock.yaml && NODE_ENV=development pnpm install --ignore-scripts
+RUN NODE_ENV=development pnpm install
 
 # Copy all packages source code
 COPY packages/ ./packages/
