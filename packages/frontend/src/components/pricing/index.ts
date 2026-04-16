@@ -1,3 +1,1 @@
-import { PricingPage } from './components/pricing/PricingPage';
-
-export { PricingPage };
+export { default as PricingPage } from './PricingPage';
