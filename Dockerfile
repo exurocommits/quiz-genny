@@ -20,15 +20,14 @@ RUN NODE_ENV=development pnpm install
 # Build all packages
 RUN NODE_ENV=development pnpm run build
 
-# Re-install production only
-RUN pnpm install --prod
+# Strip devDependencies for production
+RUN pnpm prune --prod
+
+# Rebuild native modules for production
+RUN pnpm rebuild better-sqlite3
 
 # Expose port
 EXPOSE 3000
-
-# Health check (wget is available in alpine)
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=10 \
-  CMD wget -q --spider http://localhost:3000/health || exit 1
 
 # Start backend server
 CMD ["node", "packages/backend/dist/index.js"]
