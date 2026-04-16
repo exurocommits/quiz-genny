@@ -18,7 +18,9 @@
     "openai": "^6.16.0",
     "pptxgenjs": "^3.12.0",
     "string-similarity": "^4.0.4",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "@supabase/supabase-js": "^2",
+    "stripe": "^17"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

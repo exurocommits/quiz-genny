@@ -28,7 +28,7 @@ EXPOSE 3000
 
 # Health check with longer startup time
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=10 \
-  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {if (r.statusCode !== 200) throw new Error('Health check failed')})"
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error('Health check failed')})"
 
 # Start backend server
 CMD ["node", "packages/backend/dist/index.js"]
