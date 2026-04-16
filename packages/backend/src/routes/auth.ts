@@ -32,7 +32,7 @@ router.post('/signup', async (req: Request, res: Response): Promise<void> => {
     const validated = signupSchema.parse(req.body);
     const { email, password, fullName } = validated;
 
-    const existing = db.prepare('SELECT id FROM user WHERE email = ?').get(email);
+    const existing = db.prepare('SELECT id FROM user WHERE email = ?').get(email) as { id: string } | undefined;
     if (existing) {
       res.status(400).json({ error: 'User already exists' });
       return;
@@ -171,7 +171,7 @@ router.post('/reset-password', async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const user = db.prepare('SELECT id FROM user WHERE email = ?').get(email);
+    const user = db.prepare('SELECT id FROM user WHERE email = ?').get(email) as { id: string } | undefined;
     if (!user) {
       // Don't reveal whether email exists
       res.json({ message: 'Password reset email sent' });
