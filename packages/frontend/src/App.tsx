@@ -4,10 +4,10 @@ import { SetupPage } from './components/setup/SetupPage';
 import { SectionsPage } from './components/sections/SectionsPage';
 import { QuestionsPage } from './components/questions/QuestionsPage';
 import { PreviewPage } from './components/preview/PreviewPage';
-import { LandingPage } from './components/landing/LandingPage';
-import { PricingPage } from './components/pricing/PricingPage';
-import { TermsOfService } from './components/legal/TermsOfService';
-import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
+import LandingPage from './components/landing/LandingPage';
+import PricingPage from './components/pricing/PricingPage';
+import { TermsPage } from './components/legal/TermsOfService';
+import { PrivacyPage } from './components/legal/PrivacyPolicy';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -30,8 +30,8 @@ function App() {
           <Route path="/sections" element={<SectionsPage />} />
           <Route path="/questions/:roundIndex" element={<QuestionsPage />} />
           <Route path="/preview" element={<PreviewPage />} />
-          <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
