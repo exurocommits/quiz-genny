@@ -26,9 +26,9 @@ RUN pnpm install --prod
 # Expose port
 EXPOSE 3000
 
-# Health check
+# Health check (wget is available in alpine)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=10 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error('Health check failed')})"
+  CMD wget -q --spider http://localhost:3000/health || exit 1
 
 # Start backend server
 CMD ["node", "packages/backend/dist/index.js"]
