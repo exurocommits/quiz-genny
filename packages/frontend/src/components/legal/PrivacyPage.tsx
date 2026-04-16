@@ -1,3 +1,6 @@
+import React from 'react';
+
+const privacyMarkdown = `
 # Privacy Policy
 
 **Effective Date:** February 21, 2026
@@ -214,3 +217,23 @@ Mailing Address: [Your Address]
 ---
 
 *Last Updated: February 21, 2026*
+`;
+
+const PrivacyPage: React.FC = () => {
+  return (
+    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
+      <div
+        dangerouslySetInnerHTML={{
+          __html: privacyMarkdown
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br />')
+        }}
+      />
+    </div>
+  );
+};
+
+export default PrivacyPage;
