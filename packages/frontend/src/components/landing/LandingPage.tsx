@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Wand2, Sparkles, Zap, CheckCircle, ArrowRight } from 'lucide-react';
 
