@@ -5,30 +5,28 @@ RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 
-# Copy root package files
+# Copy all source
 COPY package*.json ./
 COPY pnpm-workspace.yaml ./
 COPY turbo.json ./
+COPY packages/ ./packages/
 
 # Install pnpm globally (pin version)
 RUN npm install -g pnpm@9
 
-# Install all dependencies including devDeps (turbo is a devDep)
+# Install all deps (including devDeps for build)
 RUN NODE_ENV=development pnpm install
 
-# Copy all packages source code
-COPY packages/ ./packages/
-
-# Build all packages using turbo
+# Build all packages
 RUN NODE_ENV=development pnpm run build
 
-# Strip devDependencies for production
+# Re-install production only
 RUN pnpm install --prod
 
 # Expose port
 EXPOSE 3000
 
-# Health check with longer startup time
+# Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=10 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error('Health check failed')})"
 
