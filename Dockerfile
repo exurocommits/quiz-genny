@@ -14,17 +14,16 @@ COPY turbo.json ./
 # Install pnpm globally
 RUN npm install -g pnpm
 
-# Install all dependencies (includes workspaces)
-# --ignore-scripts to skip husky (not needed in Docker)
-RUN pnpm install --ignore-scripts
+# Install all dependencies including devDeps (turbo is a devDep)
+RUN NODE_ENV=development pnpm install --ignore-scripts
 
 # Copy all packages source code
 COPY packages/ ./packages/
 
 # Build all packages using turbo
-RUN pnpm run build
+RUN NODE_ENV=development pnpm run build
 
-# Install only production dependencies
+# Strip devDependencies for production
 RUN pnpm install --prod
 
 # Expose port
