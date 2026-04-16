@@ -7,15 +7,14 @@ WORKDIR /app
 
 # Copy root package files
 COPY package*.json ./
-COPY pnpm-lock.yaml ./
 COPY pnpm-workspace.yaml ./
 COPY turbo.json ./
 
-# Install pnpm globally
-RUN npm install -g pnpm
+# Install pnpm globally (pin version)
+RUN npm install -g pnpm@9
 
 # Install all dependencies including devDeps (turbo is a devDep)
-RUN NODE_ENV=development pnpm install --ignore-scripts
+RUN NODE_ENV=development pnpm install --ignore-scripts --frozen-lockfile=false
 
 # Copy all packages source code
 COPY packages/ ./packages/
