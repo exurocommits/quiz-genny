@@ -15,7 +15,8 @@ COPY turbo.json ./
 RUN npm install -g pnpm
 
 # Install all dependencies (includes workspaces)
-RUN pnpm install
+# --ignore-scripts to skip husky (not needed in Docker)
+RUN pnpm install --ignore-scripts
 
 # Copy all packages source code
 COPY packages/ ./packages/
